@@ -242,9 +242,22 @@ const SidebarSettings: React.FC = () => {
   };
 
   const toggleVisibility = (id: SidebarItemId) => {
+    if (id === 'divider') {
+      setOrder(current => current.filter(item => item !== id));
+      setHiddenItems(current => current.filter(item => item !== id));
+      setSaveState('idle');
+      return;
+    }
     setHiddenItems(current => current.includes(id)
       ? current.filter(item => item !== id)
       : [...current, id]);
+    setSaveState('idle');
+  };
+
+  const addDivider = () => {
+    if (order.includes('divider')) return;
+    setOrder(current => [...current, 'divider']);
+    setHiddenItems(current => current.filter(item => item !== 'divider'));
     setSaveState('idle');
   };
 
@@ -335,6 +348,15 @@ const SidebarSettings: React.FC = () => {
 
       <div className="border-t border-surface-100 px-4 py-4 dark:border-surface-800 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={addDivider}
+            disabled={order.includes('divider') || isSaving}
+            className="btn btn-ghost justify-center sm:justify-start disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Bars3Icon className="mr-2 h-4 w-4 rotate-90" aria-hidden="true" />
+            Trennlinie hinzufügen
+          </button>
           <button type="button" onClick={resetOrder} disabled={isSaving} className="btn btn-ghost justify-center sm:justify-start">
             <ArrowPathIcon className="mr-2 h-4 w-4" aria-hidden="true" />
             Standard wiederherstellen

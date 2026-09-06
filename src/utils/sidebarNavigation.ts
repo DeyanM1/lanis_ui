@@ -1,4 +1,6 @@
 export const SIDEBAR_ITEM_IDS = [
+  'search',
+  'divider',
   'dashboard',
   'messages',
   'dateispeicher',
@@ -16,6 +18,7 @@ export const SIDEBAR_ITEM_IDS = [
 export type SidebarItemId = typeof SIDEBAR_ITEM_IDS[number];
 
 export const DEFAULT_SIDEBAR_ORDER: SidebarItemId[] = [
+  'search',
   'dashboard',
   'messages',
   'dateispeicher',
@@ -31,6 +34,8 @@ export const DEFAULT_SIDEBAR_ORDER: SidebarItemId[] = [
 ];
 
 export const SIDEBAR_ITEM_LABELS: Record<SidebarItemId, string> = {
+  search: 'Suche',
+  divider: 'Trennlinie',
   dashboard: 'Dashboard',
   messages: 'Nachrichten',
   dateispeicher: 'Dateispeicher',
