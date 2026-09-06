@@ -127,7 +127,7 @@ const PrivacyPolicy: React.FC = () => {
             </p>
             <p className="mt-2">
               Nachrichten, die du an den Assistenten sendest, und seine Antworten werden über die
-              WhatsApp Business Platform von Meta sowie den vom Betreiber eingerichteten KI-Anbieter
+              WhatsApp Business Platform von Meta sowie – sofern eingerichtet – den vom Betreiber eingerichteten KI-Anbieter
               verarbeitet. Das Backend übermittelt dem KI-Anbieter deine Frage und nur die LANIS-Daten,
               die zur Bearbeitung benötigt werden; dein Schulportal-Passwort und deine WhatsApp-Nummer
               werden nicht übermittelt. Beim bereitgestellten Standard-Backend wird der begrenzte
