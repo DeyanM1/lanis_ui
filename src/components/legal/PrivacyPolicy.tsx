@@ -130,8 +130,10 @@ const PrivacyPolicy: React.FC = () => {
               WhatsApp Business Platform von Meta sowie den vom Betreiber eingerichteten KI-Anbieter
               verarbeitet. Das Backend übermittelt dem KI-Anbieter deine Frage und nur die LANIS-Daten,
               die zur Bearbeitung benötigt werden; dein Schulportal-Passwort und deine WhatsApp-Nummer
-              werden nicht übermittelt. Der begrenzte Gesprächsverlauf wird im Backend verschlüsselt
-              gespeichert, nach 24 Stunden verworfen und beim Trennen der Verbindung gelöscht.
+              werden nicht übermittelt. Beim bereitgestellten Standard-Backend wird der begrenzte
+              Gesprächsverlauf verschlüsselt gespeichert, nach 24 Stunden verworfen und beim Trennen
+              der Verbindung gelöscht. Bei einem selbst eingestellten Backend richten sich Schutzmaßnahmen
+              und Speicherfristen nach den Angaben seines Betreibers.
               Antworten können von dir angeforderte
               schulische Angaben enthalten, etwa Stundenplan, Vertretungen, Aufgaben, Termine oder – nur
               nach gesonderter Aktivierung – Absender und Betreff ungelesener Nachrichten. Änderungen im

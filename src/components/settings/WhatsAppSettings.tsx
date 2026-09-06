@@ -17,7 +17,6 @@ import { WhatsAppPairingResponse, WhatsAppStatusResponse } from '../../types';
 const emptyStatus: WhatsAppStatusResponse = {
   success: true,
   configured: false,
-  ai_configured: false,
   linked: false,
   phone_suffix: '',
   linked_at: null,
@@ -343,7 +342,7 @@ const WhatsAppSettings: React.FC = () => {
           </div>
         )}
 
-        {!status.ai_configured && (
+        {status.ai_configured === false && (
           <div className="border-t border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 sm:px-6">
             Die KI-Verbindung ist derzeit nicht eingerichtet. Einfache Anfragen werden mit dem eingeschränkten Ersatzmodus beantwortet.
           </div>
@@ -356,7 +355,7 @@ const WhatsAppSettings: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Datenschutz zuerst</h3>
             <p className="mt-1 text-sm leading-6 text-surface-500 dark:text-surface-400">
-              Dein Schulportal-Passwort wird niemals an WhatsApp oder den KI-Anbieter gesendet. Änderungen werden erst nach einer separaten Bestätigung ausgeführt. Der verschlüsselte Gesprächsverlauf ist begrenzt, läuft nach 24 Stunden ab und wird beim Trennen gelöscht. Chat- und benötigte Schuldaten werden von WhatsApp, dem Betreiber und dem eingerichteten KI-Anbieter verarbeitet.
+              Dein Schulportal-Passwort wird niemals an WhatsApp oder den KI-Anbieter gesendet. Änderungen werden erst nach einer separaten Bestätigung ausgeführt. Beim bereitgestellten Standard-Backend ist der verschlüsselte Gesprächsverlauf begrenzt, läuft nach 24 Stunden ab und wird beim Trennen gelöscht. Bei einem eigenen Backend gelten die Angaben seines Betreibers. Chat- und benötigte Schuldaten werden von WhatsApp, dem Betreiber und dem eingerichteten KI-Anbieter verarbeitet.
             </p>
           </div>
         </div>
