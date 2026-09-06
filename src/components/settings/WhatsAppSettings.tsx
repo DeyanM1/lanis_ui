@@ -260,7 +260,7 @@ const WhatsAppSettings: React.FC = () => {
                 onChange={event => setConsentAccepted(event.target.checked)}
               />
               <span className="text-xs leading-5 text-surface-600 dark:text-surface-300">
-                Ich möchte mein Konto freiwillig mit WhatsApp und dem eingerichteten KI-Anbieter verbinden. Meine Fragen und die dafür benötigten LANIS-Daten dürfen zur Beantwortung verarbeitet werden. Ich habe die Hinweise in der{' '}
+                Ich möchte mein Konto freiwillig mit WhatsApp verbinden. Meine Fragen und die dafür benötigten LANIS-Daten dürfen über WhatsApp, das Backend und – sofern eingerichtet – den KI-Anbieter verarbeitet werden. Ich habe die Hinweise in der{' '}
                 <Link to="/privacy-policy" className="font-medium text-primary-600 underline underline-offset-2 dark:text-primary-400">
                   Datenschutzerklärung
                 </Link>{' '}
