@@ -355,7 +355,7 @@ const WhatsAppSettings: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Datenschutz zuerst</h3>
             <p className="mt-1 text-sm leading-6 text-surface-500 dark:text-surface-400">
-              Dein Schulportal-Passwort wird niemals an WhatsApp oder den KI-Anbieter gesendet. Änderungen werden erst nach einer separaten Bestätigung ausgeführt. Beim bereitgestellten Standard-Backend ist der verschlüsselte Gesprächsverlauf begrenzt, läuft nach 24 Stunden ab und wird beim Trennen gelöscht. Bei einem eigenen Backend gelten die Angaben seines Betreibers. Chat- und benötigte Schuldaten werden von WhatsApp, dem Betreiber und dem eingerichteten KI-Anbieter verarbeitet.
+              Dein Schulportal-Passwort wird niemals an WhatsApp oder den KI-Anbieter gesendet. Änderungen werden erst nach einer separaten Bestätigung ausgeführt. Beim bereitgestellten Standard-Backend ist der verschlüsselte Gesprächsverlauf begrenzt, läuft nach 24 Stunden ab und wird beim Trennen gelöscht. Bei einem eigenen Backend gelten die Angaben seines Betreibers. Chat- und benötigte Schuldaten werden von WhatsApp, dem Betreiber und – sofern eingerichtet – dem KI-Anbieter verarbeitet.
             </p>
           </div>
         </div>
