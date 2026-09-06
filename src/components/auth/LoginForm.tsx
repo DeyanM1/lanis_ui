@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { EyeIcon, EyeSlashIcon, SunIcon, MoonIcon, ServerStackIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 import SEO from '../seo/SEO';
 import AppIcon from '../AppIcon';
 
@@ -223,14 +223,7 @@ const LoginForm: React.FC = () => {
         {isOled ? <MoonIcon className="h-4 w-4" /> : isDark ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
         {isOled ? 'OLED' : isDark ? 'Dunkel' : 'Hell'}
       </button>
-      <Link
-        to="/set-custom-backend"
-        className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-700 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200"
-        title="Server auswählen"
-      >
-        <ServerStackIcon className="h-3.5 w-3.5" aria-hidden="true" />
-        Server auswählen
-      </Link>
+      {/* The custom-backend selector is intentionally hidden from the login page. */}
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
             <AppIcon alt="Schulportal" className="mx-auto h-14 w-14 rounded-2xl mb-6 shadow-soft-md" />
