@@ -36,7 +36,8 @@ const WhatsAppSettings: React.FC = () => {
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [copied, setCopied] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const aiAvailable = status.ai_configured !== false;
+  const aiAvailable = status.ai_configured === true;
+  const aiUnavailable = status.ai_configured === false;
   const latestStatusRequest = useRef(0);
   const statusRequestInFlight = useRef<number | null>(null);
   const preferenceRequestInFlight = useRef(false);
@@ -243,7 +244,9 @@ const WhatsAppSettings: React.FC = () => {
             <p className="mt-1 text-sm leading-6 text-surface-500 dark:text-surface-400">
               {aiAvailable
                 ? 'Unterhalte dich natürlich mit deiner persönlichen LANIS-KI. Sie kann Informationen aus mehreren Schulbereichen verbinden und Änderungen nach deiner ausdrücklichen Bestätigung ausführen.'
-                : 'Der eingeschränkte Ersatzmodus beantwortet einfache Fragen zu deinem LANIS-Schulalltag.'}
+                : aiUnavailable
+                  ? 'Der eingeschränkte Ersatzmodus beantwortet einfache Fragen zu deinem LANIS-Schulalltag.'
+                  : 'Der WhatsApp-Assistent beantwortet deine Fragen zu deinem LANIS-Schulalltag.'}
             </p>
           </div>
         </div>
