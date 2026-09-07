@@ -33,7 +33,9 @@ export const DEFAULT_SIDEBAR_ORDER: SidebarItemId[] = [
   'settings',
 ];
 
-export const SIDEBAR_ITEM_LABELS: Record<SidebarItemId, string> = {
+export const isDivider = (id: string): boolean => id === 'divider' || id.startsWith('divider-');
+
+export const SIDEBAR_ITEM_LABELS: Record<string, string> = {
   search: 'Suche',
   divider: 'Trennlinie',
   dashboard: 'Dashboard',
@@ -50,10 +52,13 @@ export const SIDEBAR_ITEM_LABELS: Record<SidebarItemId, string> = {
   settings: 'Einstellungen',
 };
 
-export const normalizeSidebarOrder = (order: string[]): SidebarItemId[] => {
-  const normalized = [...new Set(
-    order.filter((id): id is SidebarItemId => SIDEBAR_ITEM_IDS.includes(id as SidebarItemId)),
-  )];
+export const getSidebarLabel = (id: string): string => {
+  if (isDivider(id)) return 'Trennlinie';
+  return SIDEBAR_ITEM_LABELS[id] ?? id;
+};
+
+export const normalizeSidebarOrder = (order: string[]): string[] => {
+  const normalized = [...new Set(order)];
 
   for (const missingItem of DEFAULT_SIDEBAR_ORDER) {
     if (normalized.includes(missingItem)) continue;

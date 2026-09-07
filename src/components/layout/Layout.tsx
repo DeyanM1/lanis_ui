@@ -31,7 +31,7 @@ import { getModuleAvailability, readModulesCache, writeModulesCache } from '../.
 import type { CachedModule } from '../../utils/moduleCache';
 import { getThemeIconUrl, getThemeManifestUrl, THEME_COLOR_HEX } from '../../utils/themeAssets';
 import AppIcon from '../AppIcon';
-import { normalizeSidebarOrder, SidebarItemId } from '../../utils/sidebarNavigation';
+import { normalizeSidebarOrder, SidebarItemId, isDivider } from '../../utils/sidebarNavigation';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,7 +39,7 @@ interface LayoutProps {
 }
 
 type SidebarNavigationItem = {
-  id: SidebarItemId;
+  id: string;
   name: string;
   href: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -160,8 +160,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   ]);
   const navigation = normalizeSidebarOrder(preferences.sidebar.order)
     .filter(id => !preferences.sidebar.hidden_items.includes(id))
-    .filter(id => availableItems.has(id))
-    .map(id => ({ id, ...navigationItems[id] }));
+    .filter(id => availableItems.has(id as SidebarItemId) || isDivider(id))
+    .map(id => ({ id, ...(isDivider(id) ? navigationItems['divider'] : navigationItems[id as SidebarItemId]) }));
 
   const handleLogout = async () => {
     setShowLogoutConfirmation(false);
@@ -343,7 +343,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
                     )}
                   </button>
                 );
-              }              if (item.id === 'divider') {
+              }              if (isDivider(item.id)) {
                 return (
                   <div key={item.id} className="!my-3 border-t border-surface-100 dark:border-surface-800" aria-label="Trennlinie" />
                 );
