@@ -343,10 +343,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
                     )}
                   </button>
                 );
-              }
-              if (item.id === 'divider') {
+              }              if (item.id === 'divider') {
                 return (
-                  <li key={item.id} className="mb-1 !mt-5 border-t border-surface-100 dark:border-surface-800" aria-label="Trennlinie" />
+                  <div key={item.id} className="!my-3 border-t border-surface-100 dark:border-surface-800" aria-label="Trennlinie" />
                 );
               }
               const isActive = item.href === '/'
