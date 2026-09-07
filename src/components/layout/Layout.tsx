@@ -22,6 +22,7 @@ import {
   ClipboardDocumentCheckIcon,
   FolderIcon,
   MagnifyingGlassIcon,
+  MinusIcon,
 } from '@heroicons/react/24/outline';
 import { Link, useLocation } from 'react-router-dom';
 import GlobalSearch from '../search/GlobalSearch';
@@ -30,12 +31,21 @@ import { getModuleAvailability, readModulesCache, writeModulesCache } from '../.
 import type { CachedModule } from '../../utils/moduleCache';
 import { getThemeIconUrl, getThemeManifestUrl, THEME_COLOR_HEX } from '../../utils/themeAssets';
 import AppIcon from '../AppIcon';
-import { normalizeSidebarOrder, SidebarItemId } from '../../utils/sidebarNavigation';
+import { normalizeSidebarOrder, SidebarItemId, isDivider } from '../../utils/sidebarNavigation';
 
 interface LayoutProps {
   children: React.ReactNode;
   basePath?: string;
 }
+
+type SidebarNavigationItem = {
+  id: string;
+  name: string;
+  href: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
+
+const SIDEBAR_COLLAPSED_KEY = 'lanis_sidebar_collapsed';
 
 const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const { user, token, logout } = useAuth();
@@ -43,6 +53,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const { themeColor } = useTheme();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(() => (
+    window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+  ));
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = React.useState(false);
   const [hasNativeDateispeicher, setHasNativeDateispeicher] = React.useState(false);
@@ -54,6 +67,10 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
 
   const appIconUrl = getThemeIconUrl(themeColor);
   const manifestUrl = getThemeManifestUrl(themeColor);
+
+  React.useEffect(() => {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   React.useLayoutEffect(() => {
     const el = pwaRef.current;
@@ -119,6 +136,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   }, []);
 
   const navigationItems = {
+    search: { name: 'Suche', href: `${basePath}/search`, icon: MagnifyingGlassIcon },
+    divider: { name: 'Trennlinie', href: '#divider', icon: MinusIcon },
     dashboard: { name: 'Dashboard', href: `${basePath}/dashboard`, icon: HomeIcon },
     messages: { name: 'Nachrichten', href: `${basePath}/messages`, icon: ChatBubbleLeftRightIcon },
     dateispeicher: { name: 'Dateispeicher', href: `${basePath}/dateispeicher`, icon: FolderIcon },
@@ -133,7 +152,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     settings: { name: 'Einstellungen', href: `${basePath}/settings`, icon: Cog6ToothIcon },
   } satisfies Record<SidebarItemId, { name: string; href: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }>;
   const availableItems = new Set<SidebarItemId>([
-    'dashboard', 'messages', 'courses', 'timetable', 'study-groups', 'calendar', 'profile', 'settings',
+    'search', 'divider', 'dashboard', 'messages', 'courses', 'timetable', 'study-groups', 'calendar', 'profile', 'settings',
     ...(hasNativeDateispeicher ? ['dateispeicher' as const] : []),
     ...(hasNativeSubstitutionPlan ? ['vertretungsplan' as const] : []),
     ...(hasDsbModule ? ['dsb' as const] : []),
@@ -141,8 +160,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   ]);
   const navigation = normalizeSidebarOrder(preferences.sidebar.order)
     .filter(id => !preferences.sidebar.hidden_items.includes(id))
-    .filter(id => availableItems.has(id))
-    .map(id => navigationItems[id]);
+    .filter(id => availableItems.has(id as SidebarItemId) || isDivider(id))
+    .map(id => ({ id, ...(isDivider(id) ? navigationItems['divider'] : navigationItems[id as SidebarItemId]) }));
 
   const handleLogout = async () => {
     setShowLogoutConfirmation(false);
@@ -172,9 +191,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         </div>
       )}
 
-      <div className={'hidden md:flex md:w-64 md:flex-col md:fixed ' + (isDemo ? 'md:top-10 md:bottom-0' : 'md:inset-y-0')}>
+      <div className={'hidden md:flex md:flex-col md:fixed transition-[width] duration-300 ease-out ' + (isSidebarCollapsed ? 'md:w-[60px]' : 'md:w-64') + ' ' + (isDemo ? 'md:top-10 md:bottom-0' : 'md:inset-y-0')}>
         <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-surface-900 border-r border-surface-100 dark:border-surface-800">
-          <SidebarContent navigation={navigation} />
+          <SidebarContent navigation={navigation} isCollapsed={isSidebarCollapsed} />
         </div>
       </div>
 
@@ -202,7 +221,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
           <MagnifyingGlassIcon className="h-5 w-5" />
         </button>
       </div>
-      <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto md:ml-64 focus:outline-none pt-14 md:pt-0">
+      <main ref={mainRef} className={'flex-1 min-h-0 overflow-y-auto focus:outline-none pt-14 md:pt-0 transition-[margin] duration-300 ease-out ' + (isSidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-64')}>
         <BasePathProvider basePath={basePath}>
           <div className="animate-fade-in">
             {children}
@@ -229,52 +248,124 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     </div>
   );
 
-  function SidebarContent({ navigation }: { navigation: typeof navigationItems[SidebarItemId][] }) {
+  function SidebarContent({
+    navigation,
+    isCollapsed = false,
+  }: {
+    navigation: SidebarNavigationItem[];
+    isCollapsed?: boolean;
+  }) {
     return (
       <>
-        <div className="flex items-center flex-shrink-0 px-5 py-5">
-          <div className="flex items-center gap-3">
-            <AppIcon alt="Schulportal" className="h-9 w-9 rounded-xl" />
-            <div>
-              <h1 className="text-base font-semibold text-surface-900 dark:text-surface-100 tracking-tight">Schulportal</h1>
-              <p className="text-[11px] text-surface-500 dark:text-surface-400 font-medium tracking-wide uppercase">Hessen</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-3 pb-2">
-          <button
-            onClick={() => setIsSearchOpen(true)}
-            className="nav-link w-full justify-between"
+        <div className={`flex items-center flex-shrink-0 py-5 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-5'}`}>
+          <Link
+            to={`${basePath}/dashboard`}
+            className={`group relative flex items-center rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/50 ${isCollapsed ? 'h-10 w-10 justify-center' : 'gap-3'}`}
+            aria-label={isCollapsed ? 'Seitenleiste ausklappen' : 'Zum Dashboard'}
+            title={isCollapsed ? 'Seitenleiste ausklappen' : undefined}
+            onClick={(event) => {
+              setIsSidebarOpen(false);
+              if (isCollapsed) {
+                event.preventDefault();
+                setIsSidebarCollapsed(false);
+              }
+            }}
           >
-            <div className="flex items-center gap-3">
-              <MagnifyingGlassIcon className="nav-link-icon text-surface-400 dark:text-surface-500" />
-              <span>Suche</span>
+            <AppIcon alt="Schulportal" className={`${isCollapsed ? 'h-10 w-10' : 'h-9 w-9'} rounded-xl transition-opacity duration-200 ${isCollapsed ? 'group-hover:opacity-0' : ''}`} />
+            <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-32 opacity-100'}`}>
+              <h1 className="whitespace-nowrap text-base font-semibold text-surface-900 dark:text-surface-100 tracking-tight">Schulportal</h1>
+              <p className="whitespace-nowrap text-[11px] text-surface-500 dark:text-surface-400 font-medium tracking-wide uppercase">Hessen</p>
             </div>
-            <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-surface-400 dark:text-surface-500 bg-surface-50 dark:bg-surface-800 border border-surface-200 dark:border-surface-700">
-              Strg+K
-            </kbd>
-          </button>
+            {isCollapsed && (
+              <svg
+                aria-hidden="true"
+                className="pointer-events-none absolute h-5 w-5 text-surface-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:text-surface-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 4v16" />
+                <path d="M5 12h10" />
+                <path d="m11 8 4 4-4 4" />
+              </svg>
+            )}
+          </Link>
+          {!isCollapsed && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:text-surface-500 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+              aria-label="Seitenleiste einklappen"
+              title="Seitenleiste einklappen"
+            >
+              <svg
+                aria-hidden="true"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 4v16" />
+                <path d="M19 12H9" />
+                <path d="m13 8-4 4 4 4" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        <div className="flex-1 flex flex-col overflow-y-auto px-3 pb-4">
+        <div className={`flex-1 flex flex-col overflow-y-auto ${isCollapsed ? 'px-0' : 'px-3'} pb-4`}>
           <nav className="flex-1 space-y-1">
             {navigation.map((item, index) => {
+              if (item.id === 'search') {
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setIsSearchOpen(true)}
+                    className={`nav-link ${isCollapsed ? 'mx-auto h-10 w-10 justify-center gap-0 px-0' : 'w-full'}`}
+                    title={isCollapsed ? item.name : undefined}
+                    aria-label={item.name}
+                  >
+                    <item.icon className="nav-link-icon text-surface-400 dark:text-surface-500" />
+                    <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${isCollapsed ? 'max-w-0 opacity-0' : 'max-w-24 opacity-100'}`}>
+                      {item.name}
+                    </span>
+                    {!isCollapsed && (
+                      <kbd className="ml-auto hidden items-center rounded border border-surface-200 bg-surface-50 px-1.5 py-0.5 text-[10px] font-medium text-surface-400 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-500 md:inline-flex">
+                        Strg+K
+                      </kbd>
+                    )}
+                  </button>
+                );
+              }              if (isDivider(item.id)) {
+                return (
+                  <div key={item.id} className="!my-3 border-t border-surface-100 dark:border-surface-800" aria-label="Trennlinie" />
+                );
+              }
               const isActive = item.href === '/'
                 ? location.pathname === item.href
                 : location.pathname === item.href || location.pathname.startsWith(item.href + '/');
               return (
                 <Link
-                  key={item.name}
+                  key={item.id}
                   to={item.href}
                   style={{ animationDelay: `${index * 60}ms` }}
-                  className={`nav-link ${isActive ? 'nav-link-active' : ''}`}
+                  className={`nav-link ${isCollapsed ? 'mx-auto h-10 w-10 justify-center gap-0 px-0' : ''} ${isActive ? 'nav-link-active' : ''}`}
+                  title={isCollapsed ? item.name : undefined}
                   onClick={() => setIsSidebarOpen(false)}
                 >
                   <item.icon
                     className={`nav-link-icon ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-surface-400 dark:text-surface-500'}`}
                   />
-                  {item.name}
+                  <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${isCollapsed ? 'max-w-0 opacity-0' : 'max-w-48 opacity-100'}`}>
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}
@@ -283,7 +374,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
             <div className="relative">
               {showLogoutConfirmation && (
                 <div
-                  className="absolute bottom-full left-0 right-0 z-20 mb-2 rounded-xl border border-surface-200 bg-white p-3 shadow-soft-lg dark:border-surface-700 dark:bg-surface-900"
+                  className={`${isCollapsed
+                    ? 'fixed bottom-4 left-[68px] z-50 w-64'
+                    : 'absolute bottom-full left-0 right-0 z-20 mb-2'} rounded-xl border border-surface-200 bg-white p-3 shadow-soft-lg dark:border-surface-700 dark:bg-surface-900`}
                   role="dialog"
                   aria-label="Abmelden bestätigen"
                 >
@@ -308,12 +401,14 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
               )}
               <button
                 onClick={() => setShowLogoutConfirmation(current => !current)}
-                className="nav-link w-full text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300"
+                className={`nav-link text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 ${isCollapsed ? 'mx-auto h-10 w-10 justify-center gap-0 px-0' : 'w-full'}`}
                 title="Abmelden"
                 aria-expanded={showLogoutConfirmation}
               >
                 <ArrowRightOnRectangleIcon className="nav-link-icon text-surface-400 dark:text-surface-500" />
-                Abmelden
+                <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${isCollapsed ? 'max-w-0 opacity-0' : 'max-w-24 opacity-100'}`}>
+                  Abmelden
+                </span>
               </button>
             </div>
           </div>

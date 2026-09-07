@@ -33,6 +33,7 @@ import {
   ServerStackIcon,
   SunIcon,
   SparklesIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import SEO from '../seo/SEO';
 import { getDeferredPrompt } from '../pwa/InstallPrompt';
@@ -45,6 +46,8 @@ import {
   normalizeSidebarOrder,
   SIDEBAR_ITEM_LABELS,
   SidebarItemId,
+  isDivider,
+  getSidebarLabel,
 } from '../../utils/sidebarNavigation';
 
 const isStandalone = () =>
@@ -179,7 +182,7 @@ const SidebarSettings: React.FC = () => {
   const { preferences, updatePreferences, isSaving } = usePreferences();
   const [order, setOrder] = useState(() => normalizeSidebarOrder(preferences.sidebar.order));
   const [hiddenItems, setHiddenItems] = useState<string[]>(() => preferences.sidebar.hidden_items);
-  const [draggedId, setDraggedId] = useState<SidebarItemId | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SidebarSaveState>('idle');
 
   useEffect(() => {
@@ -191,7 +194,7 @@ const SidebarSettings: React.FC = () => {
   const hiddenOrder = order.filter(id => hiddenItems.includes(id));
   const displayOrder = [...visibleOrder, ...hiddenOrder];
 
-  const moveItem = (itemId: SidebarItemId, direction: -1 | 1) => {
+  const moveItem = (itemId: string, direction: -1 | 1) => {
     const index = displayOrder.indexOf(itemId);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= displayOrder.length) return;
@@ -202,7 +205,7 @@ const SidebarSettings: React.FC = () => {
     setSaveState('idle');
   };
 
-  const moveItemTo = (itemId: SidebarItemId, targetId: SidebarItemId) => {
+  const moveItemTo = (itemId: string, targetId: string) => {
     setOrder(current => {
       const currentDisplayOrder = [
         ...current.filter(id => !hiddenItems.includes(id)),
@@ -241,10 +244,25 @@ const SidebarSettings: React.FC = () => {
     setSaveState('idle');
   };
 
-  const toggleVisibility = (id: SidebarItemId) => {
+  const toggleVisibility = (id: string) => {
+    if (isDivider(id)) {
+      return;
+    }
     setHiddenItems(current => current.includes(id)
       ? current.filter(item => item !== id)
       : [...current, id]);
+    setSaveState('idle');
+  };
+
+  const addDivider = () => {
+    const newId = `divider-${Date.now()}`;
+    setOrder(current => [...current, newId]);
+    setSaveState('idle');
+  };
+
+  const deleteDivider = (id: string) => {
+    setOrder(current => current.filter(item => item !== id));
+    setHiddenItems(current => current.filter(item => item !== id));
     setSaveState('idle');
   };
 
@@ -293,29 +311,41 @@ const SidebarSettings: React.FC = () => {
               }}
               onDragEnd={() => setDraggedId(null)}
               className="hidden cursor-grab touch-none rounded-lg p-2 text-surface-400 hover:bg-surface-100 hover:text-surface-600 active:cursor-grabbing dark:hover:bg-surface-800 dark:hover:text-surface-200 sm:block"
-              title={`${SIDEBAR_ITEM_LABELS[id]} ziehen`}
+              title={`${getSidebarLabel(id)} ziehen`}
             >
               <Bars3Icon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{SIDEBAR_ITEM_LABELS[id]}</p>
-              <p className="mt-0.5 text-xs text-surface-400">{hiddenItems.includes(id) ? 'Ausgeblendet' : 'In der Seitenleiste sichtbar'}</p>
+              <p className="truncate text-sm font-medium text-surface-800 dark:text-surface-200">{getSidebarLabel(id)}</p>
+              <p className="mt-0.5 text-xs text-surface-400">{isDivider(id) ? 'Trennlinie' : hiddenItems.includes(id) ? 'Ausgeblendet' : 'In der Seitenleiste sichtbar'}</p>
             </div>
             <span className="sr-only">Position {index + 1} von {order.length}</span>
-            <button
-              type="button"
-              onClick={() => toggleVisibility(id)}
-              aria-label={hiddenItems.includes(id) ? `${SIDEBAR_ITEM_LABELS[id]} einblenden` : `${SIDEBAR_ITEM_LABELS[id]} ausblenden`}
-              className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:hover:bg-surface-800 dark:hover:text-primary-400"
-            >
-              {hiddenItems.includes(id) ? <EyeIcon className="h-4 w-4" aria-hidden="true" /> : <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />}
-              <span className="hidden sm:inline">{hiddenItems.includes(id) ? 'Zeigen' : 'Ausblenden'}</span>
-            </button>
+            {isDivider(id) ? (
+              <button
+                type="button"
+                onClick={() => deleteDivider(id)}
+                aria-label={`Trennlinie löschen`}
+                className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/40 dark:hover:bg-surface-800 dark:hover:text-red-400"
+              >
+                <TrashIcon className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Löschen</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggleVisibility(id)}
+                aria-label={hiddenItems.includes(id) ? `${getSidebarLabel(id)} einblenden` : `${getSidebarLabel(id)} ausblenden`}
+                className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+              >
+                {hiddenItems.includes(id) ? <EyeIcon className="h-4 w-4" aria-hidden="true" /> : <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />}
+                <span className="hidden sm:inline">{hiddenItems.includes(id) ? 'Zeigen' : 'Ausblenden'}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => moveItem(id, -1)}
               disabled={index === 0 || hiddenItems.includes(id) !== hiddenItems.includes(displayOrder[index - 1])}
-              aria-label={`${SIDEBAR_ITEM_LABELS[id]} nach oben verschieben`}
+              aria-label={`${getSidebarLabel(id)} nach oben verschieben`}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-25 dark:hover:bg-surface-800 dark:hover:text-surface-100"
             >
               <ChevronUpIcon className="h-5 w-5" aria-hidden="true" />
@@ -324,7 +354,7 @@ const SidebarSettings: React.FC = () => {
               type="button"
               onClick={() => moveItem(id, 1)}
               disabled={index === displayOrder.length - 1 || hiddenItems.includes(id) !== hiddenItems.includes(displayOrder[index + 1])}
-              aria-label={`${SIDEBAR_ITEM_LABELS[id]} nach unten verschieben`}
+              aria-label={`${getSidebarLabel(id)} nach unten verschieben`}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-25 dark:hover:bg-surface-800 dark:hover:text-surface-100"
             >
               <ChevronDownIcon className="h-5 w-5" aria-hidden="true" />
@@ -335,6 +365,15 @@ const SidebarSettings: React.FC = () => {
 
       <div className="border-t border-surface-100 px-4 py-4 dark:border-surface-800 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={addDivider}
+            disabled={isSaving}
+            className="btn btn-ghost justify-center sm:justify-start disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Bars3Icon className="mr-2 h-4 w-4 rotate-90" aria-hidden="true" />
+            Trennlinie hinzufügen
+          </button>
           <button type="button" onClick={resetOrder} disabled={isSaving} className="btn btn-ghost justify-center sm:justify-start">
             <ArrowPathIcon className="mr-2 h-4 w-4" aria-hidden="true" />
             Standard wiederherstellen
