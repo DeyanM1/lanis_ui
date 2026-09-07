@@ -127,9 +127,17 @@ const PrivacyPolicy: React.FC = () => {
             </p>
             <p className="mt-2">
               Nachrichten, die du an den Assistenten sendest, und seine Antworten werden über die
-              WhatsApp Business Platform von Meta verarbeitet. Antworten können von dir angeforderte
+              WhatsApp Business Platform von Meta sowie – sofern eingerichtet – den vom Betreiber eingerichteten KI-Anbieter
+              verarbeitet. Beim bereitgestellten Standard-Backend werden dem KI-Anbieter deine Frage und nur die LANIS-Daten,
+              die zur Bearbeitung benötigt werden, übermittelt; dein Schulportal-Passwort und deine WhatsApp-Nummer
+              werden nicht übermittelt. Beim bereitgestellten Standard-Backend wird der begrenzte
+              Gesprächsverlauf verschlüsselt gespeichert, nach 24 Stunden verworfen und beim Trennen
+              der Verbindung gelöscht. Bei einem selbst eingestellten Backend richten sich Schutzmaßnahmen
+              und Speicherfristen nach den Angaben seines Betreibers.
+              Antworten können von dir angeforderte
               schulische Angaben enthalten, etwa Stundenplan, Vertretungen, Aufgaben, Termine oder – nur
-              nach gesonderter Aktivierung – Absender und Betreff ungelesener Nachrichten. Du kannst die
+              nach gesonderter Aktivierung – Absender und Betreff ungelesener Nachrichten. Änderungen im
+              Schulportal werden erst nach einer zusätzlichen ausdrücklichen Bestätigung ausgeführt. Du kannst die
               Verbindung jederzeit in den Einstellungen oder mit dem Befehl „STOP“ trennen.
             </p>
           </div>

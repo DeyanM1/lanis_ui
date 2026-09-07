@@ -36,6 +36,8 @@ const WhatsAppSettings: React.FC = () => {
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [copied, setCopied] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const aiAvailable = status.ai_configured === true;
+  const aiUnavailable = status.ai_configured === false;
   const latestStatusRequest = useRef(0);
   const statusRequestInFlight = useRef<number | null>(null);
   const preferenceRequestInFlight = useRef(false);
@@ -240,7 +242,11 @@ const WhatsAppSettings: React.FC = () => {
               </span>
             </div>
             <p className="mt-1 text-sm leading-6 text-surface-500 dark:text-surface-400">
-              Frage nach deinem Stundenplan, Vertretungen, Hausaufgaben, Klausuren, Terminen oder ungelesenen Nachrichten.
+              {aiAvailable
+                ? 'Unterhalte dich natürlich mit deiner persönlichen LANIS-KI. Sie kann Informationen aus mehreren Schulbereichen verbinden und Änderungen nach deiner ausdrücklichen Bestätigung ausführen.'
+                : aiUnavailable
+                  ? 'Der eingeschränkte Ersatzmodus beantwortet einfache Fragen zu deinem LANIS-Schulalltag.'
+                  : 'Der WhatsApp-Assistent beantwortet deine Fragen zu deinem LANIS-Schulalltag.'}
             </p>
           </div>
         </div>
@@ -260,7 +266,7 @@ const WhatsAppSettings: React.FC = () => {
                 onChange={event => setConsentAccepted(event.target.checked)}
               />
               <span className="text-xs leading-5 text-surface-600 dark:text-surface-300">
-                Ich möchte mein Konto freiwillig mit WhatsApp verbinden und habe die Hinweise in der{' '}
+                Ich möchte mein Konto freiwillig mit WhatsApp verbinden. Meine Fragen und die dafür benötigten LANIS-Daten dürfen über WhatsApp, das Backend und – sofern eingerichtet – den KI-Anbieter verarbeitet werden. Ich habe die Hinweise in der{' '}
                 <Link to="/privacy-policy" className="font-medium text-primary-600 underline underline-offset-2 dark:text-primary-400">
                   Datenschutzerklärung
                 </Link>{' '}
@@ -341,6 +347,12 @@ const WhatsAppSettings: React.FC = () => {
             )}
           </div>
         )}
+
+        {status.ai_configured === false && (
+          <div className="border-t border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200 sm:px-6">
+            Die KI-Verbindung ist derzeit nicht eingerichtet. Einfache Anfragen werden mit dem eingeschränkten Ersatzmodus beantwortet.
+          </div>
+        )}
       </section>
 
       <section className="card">
@@ -349,7 +361,7 @@ const WhatsAppSettings: React.FC = () => {
           <div>
             <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-100">Datenschutz zuerst</h3>
             <p className="mt-1 text-sm leading-6 text-surface-500 dark:text-surface-400">
-              Dein Schulportal-Passwort wird niemals an WhatsApp gesendet. Der Bot arbeitet nur auf deine Anfrage, antwortet nicht in Gruppen und verändert keine Daten im Schulportal. Beachte, dass Inhalte des Chats von WhatsApp und dem Betreiber des Bots verarbeitet werden.
+              Dein Schulportal-Passwort wird niemals an WhatsApp oder den KI-Anbieter gesendet. Änderungen werden erst nach einer separaten Bestätigung ausgeführt. Beim bereitgestellten Standard-Backend ist der verschlüsselte Gesprächsverlauf begrenzt, läuft nach 24 Stunden ab und wird beim Trennen gelöscht. Bei einem eigenen Backend gelten die Angaben seines Betreibers. Chat- und benötigte Schuldaten werden von WhatsApp, dem Betreiber und – sofern eingerichtet – dem KI-Anbieter verarbeitet.
             </p>
           </div>
         </div>

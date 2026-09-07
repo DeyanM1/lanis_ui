@@ -540,6 +540,7 @@ export function getMockResponse(url: string, method: string, config: any): { dat
       data: {
         success: true,
         configured: false,
+        ai_configured: false,
         linked: false,
         phone_suffix: '',
         linked_at: null,

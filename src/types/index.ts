@@ -375,6 +375,7 @@ export interface PushSubscriptionPayload {
 export interface WhatsAppStatusResponse {
   success: boolean;
   configured: boolean;
+  ai_configured?: boolean;
   linked: boolean;
   phone_suffix: string;
   linked_at: string | null;
