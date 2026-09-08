@@ -455,8 +455,10 @@ function getMockTimetable() {
   return days;
 }
 
+// Keep one exam visible in both the weekly and rolling timetable views.
+const visibleExamDate = relDate(now.getDay() === 6 ? 2 : now.getDay() === 0 ? 1 : 0);
 const mockStudyGroupExams = [
-  { id: 'exam-1', course_id: 'group-1', course_name: 'Deutsch 9c', course_sys_id: '9C-DEU', date: relDate(10), type: 'Arbeit', duration_label: '90 Min.', hours: '3.–4. Stunde' },
+  { id: 'exam-1', course_id: 'group-1', course_name: 'Deutsch 9c', course_sys_id: '9C-DEU', date: visibleExamDate, type: 'Arbeit', duration_label: '90 Min.', hours: '3.–4. Stunde' },
   { id: 'exam-2', course_id: 'group-2', course_name: 'Mathematik 9c', course_sys_id: '9C-MAT', date: relDate(12), type: 'Arbeit', duration_label: '60 Min.', hours: '1.–2. Stunde' },
   { id: 'exam-3', course_id: 'group-3', course_name: 'Englisch 9c', course_sys_id: '9C-ENG', date: relDate(24), type: 'Arbeit', duration_label: '90 Min.', hours: '3.–4. Stunde' },
   { id: 'exam-4', course_id: 'group-4', course_name: 'Biologie 9c', course_sys_id: '9C-BIO', date: relDate(34), type: 'Lernkontrolle', duration_label: '45 Min.', hours: '3.–4. Stunde' },
@@ -670,7 +672,7 @@ export function getMockResponse(url: string, method: string, config: any): { dat
   // Timetable
   if (u === '/stundenplan' && method === 'get') {
     const days = getMockTimetable();
-    return { status: 200, data: { success: true, week_start: days[0].date, week_end: days[4].date, active_week: 'A', days, custom_lessons: mockCustomLessons } };
+    return { status: 200, data: { success: true, week_start: days[0].date, week_end: days[4].date, active_week: 'A', days, exams: mockStudyGroupExams, custom_lessons: mockCustomLessons } };
   }
   if (u === '/dateispeicher' && method === 'get') {
     const folderId = Number(config?.params?.folder_id || 0);

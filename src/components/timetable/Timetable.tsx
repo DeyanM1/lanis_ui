@@ -2,8 +2,9 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import axios from 'axios';
 import { format, isToday } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
+  AcademicCapIcon,
   ArrowPathIcon,
   BookOpenIcon,
   CalendarDaysIcon,
@@ -17,7 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBasePath } from '../../contexts/BasePathContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { timetableAPI } from '../../services/api';
-import { TimetableDay, TimetableLesson, TimetableResponse } from '../../types';
+import { StudyGroupExam, TimetableDay, TimetableLesson, TimetableResponse } from '../../types';
 import { projectTimetableDays, weekTypeForDate } from '../../utils/timetableView';
 import SEO from '../seo/SEO';
 
@@ -37,6 +38,8 @@ const Timetable: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [exams, setExams] = useState<StudyGroupExam[]>([]);
+  const [examsError, setExamsError] = useState(false);
   const dayScrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +47,8 @@ const Timetable: React.FC = () => {
     const controller = new AbortController();
     setLoading(true);
     setError('');
+    setExams([]);
+    setExamsError(false);
 
     timetableAPI.getTimetable(token, controller.signal)
       .then(response => {
@@ -53,6 +58,8 @@ const Timetable: React.FC = () => {
         setActiveWeek(response.active_week);
         setReferenceWeekStart(response.week_start);
         setCustomLessons(response.custom_lessons || []);
+        setExams(response.exams || []);
+        setExamsError(Boolean(response.exams_error));
       })
       .catch(err => {
         if (axios.isCancel(err)) return;
@@ -87,6 +94,7 @@ const Timetable: React.FC = () => {
       weekOverride,
     );
   }, [activeWeek, customLessons, referenceWeekStart, selectedDays, timetableViewMode, weekOverride]);
+  const visibleExamCount = visibleDays.reduce((total, day) => total + exams.filter(exam => exam.date === day.date).length, 0);
   const lessonCount = useMemo(() => visibleDays.reduce((total, day) => total + day.lessons.length, 0), [visibleDays]);
   const firstVisibleDate = visibleDays[0]?.date ? new Date(`${visibleDays[0].date}T12:00:00`) : undefined;
   const lastVisibleDay = visibleDays[visibleDays.length - 1];
@@ -142,6 +150,13 @@ const Timetable: React.FC = () => {
           )}
         </div>
 
+        {examsError && (
+          <div role="status" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
+            <span>Klausurtermine aus Lerngruppen konnten nicht geladen werden.</span>
+            <button type="button" className="font-medium text-primary-600 dark:text-primary-400" onClick={() => setReloadKey(value => value + 1)}>Erneut versuchen</button>
+          </div>
+        )}
+
         {loading ? (
           <div className="card flex min-h-64 items-center justify-center">
             <div className="text-center text-surface-500"><ArrowPathIcon className="mx-auto mb-3 h-7 w-7 animate-spin text-primary-500" />Stundenplan wird geladen …</div>
@@ -153,7 +168,7 @@ const Timetable: React.FC = () => {
             <p className="mt-1 max-w-md text-sm text-surface-500">{error}</p>
             <button className="btn btn-secondary mt-4" onClick={() => setReloadKey(value => value + 1)}>Erneut versuchen</button>
           </div>
-        ) : lessonCount === 0 ? (
+        ) : lessonCount === 0 && visibleExamCount === 0 ? (
           <div className="card flex min-h-64 flex-col items-center justify-center text-center">
             <CalendarDaysIcon className="mb-3 h-10 w-10 text-surface-300" />
             <h2 className="font-semibold text-surface-900 dark:text-white">Keine Stunden eingetragen</h2>
@@ -174,6 +189,18 @@ const Timetable: React.FC = () => {
                     <p className="mt-0.5 text-xs text-surface-500">{format(date, 'd. MMMM', { locale: de })}</p>
                   </div>
                   <div className="space-y-2 p-3">
+                    {exams.filter(exam => exam.date === day.date).map(exam => (
+                      <Link
+                        key={exam.id}
+                        to={`${basePath}/study-groups`}
+                        className="block rounded-xl border border-violet-200 bg-violet-50 p-3 transition-colors hover:border-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 dark:border-violet-800 dark:bg-violet-950/40 dark:hover:border-violet-600"
+                      >
+                        <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300"><AcademicCapIcon className="h-4 w-4" aria-hidden="true" />{exam.type || 'Klausur'}</p>
+                        {exam.course_name && <p className="mt-1 break-words font-semibold text-surface-900 dark:text-white">{exam.course_name}</p>}
+                        {(exam.hours || exam.duration_label) && <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">{[exam.hours, exam.duration_label].filter(Boolean).join(' · ')}</p>}
+                        <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">Aus Lerngruppen <span aria-hidden="true">→</span></p>
+                      </Link>
+                    ))}
                     {day.lessons.length === 0 ? <p className="py-8 text-center text-sm text-surface-400">Unterrichtsfrei</p> : day.lessons.map((lesson, index) => (
                       <article
                         key={lesson.id || `${day.date}-${index}`}
