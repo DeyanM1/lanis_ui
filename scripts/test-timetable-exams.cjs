@@ -45,4 +45,29 @@ rows = timetableEntries([lesson], [exam, { ...exam, id: 'exam-2' }], slots);
 assert.equal(rows.length, 2);
 assert.ok(rows.every(row => row.exam));
 assert.equal(lesson.period, '3–4');
+// Replacement boundaries remain available without a time-slot table.
+const replacement = { ...exam, course_name: 'Geschichte 10B' };
+rows = timetableEntries([lesson], [replacement]);
+assert.equal(rows[0].lesson.start_time, '09:40');
+assert.equal(rows[0].lesson.end_time, '11:10');
+for (const field of ['teacher', 'room', 'course_id', 'course_name']) {
+  assert.equal(rows[0].lesson[field], undefined);
+}
+// Use each edge independently across different overlapping lessons.
+rows = timetableEntries([
+  { ...lesson, period: 3, end_time: '10:25' },
+  { ...lesson, period: 4, start_time: '10:25' },
+], [replacement]);
+assert.equal(rows[0].lesson.start_time, '09:40');
+assert.equal(rows[0].lesson.end_time, '11:10');
+// Do not infer an unknown boundary within a double lesson.
+rows = timetableEntries([lesson], [{ ...replacement, hours: '3.' }]);
+assert.equal(rows[0].lesson.start_time, '09:40');
+assert.equal(rows[0].lesson.end_time, undefined);
+rows = timetableEntries([lesson], [replacement], [
+  { period: 3, start_time: '09:45', end_time: '10:30' },
+  { period: 4, start_time: '10:30', end_time: '11:15' },
+]);
+assert.equal(rows[0].lesson.start_time, '09:45');
+assert.equal(rows[0].lesson.end_time, '11:15');
 console.log('Timetable exam checks passed: merging, replacement, ordering, partial overlap, unknown periods, empty days, and concurrent exams.');

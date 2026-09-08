@@ -68,13 +68,23 @@ export const timetableEntries = (lessons: TimetableLesson[], exams: StudyGroupEx
       const matches = (lesson: TimetableLesson) => Boolean(exam.course_name) && normalize(lesson.course_name) === normalize(exam.course_name);
       const matching = overlapping.filter(matches);
       const base = matching[0];
+      const examLesson = atPeriods({
+        ...base,
+        subject: exam.course_name || 'Klausur',
+        homework: matching.flatMap(lesson => lesson.homework || []),
+      }, run, slots);
+      // A replaced subject still supplies valid time boundaries. Only reuse
+      // exact boundaries: a partial double lesson does not reveal its midpoint.
+      examLesson.start_time ||= overlapping.find(lesson =>
+        lessonPeriods(lesson)[0] === run[0] && lesson.start_time,
+      )?.start_time;
+      examLesson.end_time ||= overlapping.find(lesson => {
+        const periods = lessonPeriods(lesson);
+        return periods[periods.length - 1] === run[run.length - 1] && lesson.end_time;
+      })?.end_time;
       entries.push({
         exam,
-        lesson: atPeriods({
-          ...base,
-          subject: exam.course_name || 'Klausur',
-          homework: matching.flatMap(lesson => lesson.homework || []),
-        }, run, slots),
+        lesson: examLesson,
         replaced: [...new Set(overlapping.filter(lesson => !matches(lesson)).map(lesson => lesson.course_name || lesson.subject))],
       });
     }
