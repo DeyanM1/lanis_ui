@@ -419,6 +419,10 @@ html[data-theme="cyan"] {
     position: relative;
   }
 
+  .calendar-events-scrollable {
+    padding-bottom: 1.25rem;
+  }
+
   .calendar-events-scrollable::after {
     content: '';
     position: absolute;
