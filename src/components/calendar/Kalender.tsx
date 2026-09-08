@@ -27,6 +27,42 @@ interface DayEvent {
   category: CalendarCategory | undefined;
 }
 
+const parseColor = (color: string): [number, number, number] | null => {
+  const value = color.trim().toLowerCase();
+  const hex = value.match(/^#([0-9a-f]{3,8})$/i);
+  if (hex) {
+    const normalized = hex[1].length <= 4
+      ? hex[1].split('').map((channel) => channel + channel).join('')
+      : hex[1];
+    if (normalized.length < 6) return null;
+    return [
+      parseInt(normalized.slice(0, 2), 16),
+      parseInt(normalized.slice(2, 4), 16),
+      parseInt(normalized.slice(4, 6), 16),
+    ];
+  }
+
+  const rgb = value.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+  return rgb ? [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])] : null;
+};
+
+const getContrastingTextColor = (backgroundColor: string): '#000000' | '#ffffff' => {
+  const rgb = parseColor(backgroundColor);
+  if (!rgb) return '#ffffff';
+
+  const luminance = rgb.reduce((sum, channel, index) => {
+    const normalized = channel / 255;
+    const linear = normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+    return sum + linear * [0.2126, 0.7152, 0.0722][index];
+  }, 0);
+  const blackContrast = (luminance + 0.05) / 0.05;
+  const whiteContrast = 1.05 / (luminance + 0.05);
+
+  return blackContrast >= whiteContrast ? '#000000' : '#ffffff';
+};
+
 const Kalender: React.FC = () => {
   const { token } = useAuth();
   const [searchParams] = useSearchParams();
@@ -163,12 +199,45 @@ const Kalender: React.FC = () => {
 
   if (isLoading && events.length === 0) {
     return (
-      <div className="p-6">
-        <div className="space-y-4">
-          <div className="skeleton h-8 w-48"></div>
-          <div className="grid grid-cols-7 gap-2">
+      <div className="h-full flex flex-col p-4 sm:p-6 max-w-7xl mx-auto">
+        <div className="page-header flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="skeleton h-9 w-36 rounded-lg" />
+            <div className="flex items-center gap-2">
+              <div className="skeleton h-10 w-20 rounded-xl" />
+              <div className="skeleton h-10 w-20 rounded-xl" />
+              <div className="skeleton h-10 w-20 rounded-xl" />
+              <div className="skeleton h-10 w-20 rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6 card flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="skeleton h-4 w-14 rounded" />
+            <div className="skeleton h-9 w-32 rounded-xl" />
+            <div className="skeleton h-9 w-48 rounded-xl" />
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="mb-2 flex-shrink-0 border-b border-surface-200 py-2 dark:border-surface-700">
+            <div className="skeleton h-7 w-40 rounded-lg" />
+          </div>
+          <div className="grid grid-cols-7 gap-px mb-1 flex-shrink-0">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="skeleton h-8 rounded" />
+            ))}
+          </div>
+          <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-hidden border border-surface-100 dark:border-surface-700">
             {Array.from({ length: 35 }).map((_, i) => (
-              <div key={i} className="skeleton h-24"></div>
+              <div key={i} className="bg-white dark:bg-surface-900 min-h-0 p-1 sm:p-1.5">
+                <div className="skeleton h-6 w-6 rounded-full mb-1" />
+                <div className="space-y-0.5">
+                  {i % 4 === 0 && <div className="skeleton h-4 w-full rounded" />}
+                  {i % 5 === 0 && <div className="skeleton h-4 w-4/5 rounded" />}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -283,6 +352,11 @@ const Kalender: React.FC = () => {
       {/* Month View */}
       {calendarViewMode === 'month' && (
       <div className="flex-1 min-h-0 flex flex-col">
+        <div className="sticky top-0 z-10 mb-2 flex-shrink-0 border-b border-surface-200 bg-surface-50/95 py-2 backdrop-blur dark:border-surface-700 dark:bg-surface-950/95">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
+            {format(currentDate, 'MMMM yyyy', { locale: de })}
+          </h2>
+        </div>
         <div className="grid grid-cols-7 gap-px mb-1 flex-shrink-0">
           {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day) => (
             <div
@@ -294,7 +368,13 @@ const Kalender: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-fr gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-hidden border border-surface-100 dark:border-surface-700">
+        <div
+          className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-y-auto overflow-x-hidden border border-surface-100 dark:border-surface-700"
+          style={{
+            gridTemplateRows: `repeat(${calendarDays.length / 7}, 160px)`,
+            gridAutoRows: '160px',
+          }}
+        >
           {calendarDays.map((day) => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayEvents = eventsByDate.get(dateKey) || [];
@@ -305,7 +385,7 @@ const Kalender: React.FC = () => {
               <div
                 key={dateKey}
                 className={clsx(
-                  'bg-white dark:bg-surface-900 min-h-0 p-1 sm:p-1.5 transition-colors overflow-hidden',
+                  'bg-white dark:bg-surface-900 min-h-0 p-1 sm:p-1.5 transition-colors overflow-hidden flex flex-col',
                   !isCurrentMonth && 'bg-surface-50 dark:!bg-surface-900 text-surface-300 dark:text-surface-600'
                 )}
               >
@@ -315,27 +395,31 @@ const Kalender: React.FC = () => {
                 )}>
                   {format(day, 'd')}
                 </div>
-                <div className="space-y-0.5">
-                  {dayEvents.slice(0, 3).map(({ event, category }, idx) => (
+                <div className={clsx(
+                  'calendar-events-scroll flex-1 min-h-0 space-y-0.5 overflow-y-auto',
+                  dayEvents.length > 3 && 'calendar-events-scrollable'
+                )}>
+                  {dayEvents.map(({ event, category }, idx) => {
+                    const backgroundColor = category?.color || event.category_color;
+                    return (
                     <button
                       key={idx}
                       onClick={() => handleEventClick(event)}
                       className={clsx(
                         'w-full text-left text-[11px] px-1 py-0.5 rounded truncate block',
-                        category?.color
-                          ? 'text-white'
+                        backgroundColor
+                          ? ''
                           : 'bg-surface-100 dark:bg-surface-700 text-surface-700 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-600'
                       )}
-                      style={category?.color ? { backgroundColor: category.color } : {}}
+                      style={backgroundColor ? {
+                        backgroundColor,
+                        color: getContrastingTextColor(backgroundColor),
+                      } : {}}
                     >
                       {event.title}
                     </button>
-                  ))}
-                  {dayEvents.length > 3 && (
-                    <div className="text-[11px] text-surface-500 px-1">
-                      +{dayEvents.length - 3} weitere
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -346,15 +430,25 @@ const Kalender: React.FC = () => {
 
       {/* List / Agenda View */}
       {calendarViewMode === 'list' && (
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="sticky top-0 z-10 mb-2 flex-shrink-0 border-b border-surface-200 bg-surface-50/95 py-2 backdrop-blur dark:border-surface-700 dark:bg-surface-950/95">
+            <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-100">
+              {format(currentDate, 'MMMM yyyy', { locale: de })}
+            </h2>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto space-y-1">
           {(() => {
-            const sortedDates = Array.from(eventsByDate.entries()).sort(([a], [b]) => a.localeCompare(b));
+            const sortedDates = Array.from(eventsByDate.entries())
+              .filter(([dateKey]) => isSameMonth(parseISO(dateKey), currentDate))
+              .sort(([a], [b]) => a.localeCompare(b));
             if (sortedDates.length === 0) {
               return (
                 <div className="card text-center py-12">
                   <CalendarDaysIcon className="mx-auto h-12 w-12 text-surface-300 dark:text-surface-600" />
                   <h3 className="mt-2 text-sm font-medium text-surface-700 dark:text-surface-300">Keine Termine</h3>
-                  <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Keine Termine in diesem Zeitraum gefunden.</p>
+                  <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                    Keine Termine im {format(currentDate, 'MMMM yyyy', { locale: de })} gefunden.
+                  </p>
                 </div>
               );
             }
@@ -401,6 +495,7 @@ const Kalender: React.FC = () => {
               );
             });
           })()}
+          </div>
         </div>
       )}
 

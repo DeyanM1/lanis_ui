@@ -414,6 +414,31 @@ html[data-theme="cyan"] {
   }
 }
 
+@layer components {
+  .calendar-events-scroll {
+    position: relative;
+  }
+
+  .calendar-events-scrollable {
+    padding-bottom: 1.25rem;
+  }
+
+  .calendar-events-scrollable::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1.25rem;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, rgb(var(--color-surface-50) / 0.9));
+  }
+
+  .dark .calendar-events-scrollable::after {
+    background: linear-gradient(to bottom, transparent, rgb(var(--color-surface-900) / 0.9));
+  }
+}
+
 /* Grain overlay */
 body::after {
   content: '';
