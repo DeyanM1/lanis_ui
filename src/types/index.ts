@@ -655,6 +655,8 @@ export interface TimetableDay {
 }
 
 export interface TimetableResponse {
+  exams?: StudyGroupExam[];
+  exams_error?: string;
   success: boolean;
   week_start?: string;
   week_end?: string;

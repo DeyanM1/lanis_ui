@@ -698,6 +698,8 @@ export const timetableAPI = {
       personal_days: personalDays,
       all_days: allDays,
       time_slots: timeSlots,
+      exams: Array.isArray(data.exams) ? data.exams : [],
+      exams_error: data.exams_error,
       custom_lessons: Array.isArray(data.custom_lessons) ? data.custom_lessons : undefined,
     };
   },
