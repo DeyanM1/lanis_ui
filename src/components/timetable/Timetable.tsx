@@ -21,6 +21,7 @@ import { timetableAPI } from '../../services/api';
 import { StudyGroupExam, TimetableDay, TimetableLesson, TimetableResponse } from '../../types';
 import { projectTimetableDays, weekTypeForDate } from '../../utils/timetableView';
 import SEO from '../seo/SEO';
+import { timetableEntries } from '../../utils/timetableExams';
 
 const Timetable: React.FC = () => {
   const { token } = useAuth();
@@ -39,6 +40,7 @@ const Timetable: React.FC = () => {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [exams, setExams] = useState<StudyGroupExam[]>([]);
+  const [timeSlots, setTimeSlots] = useState<NonNullable<TimetableResponse['time_slots']>>([]);
   const [examsError, setExamsError] = useState(false);
   const dayScrollerRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +61,7 @@ const Timetable: React.FC = () => {
         setReferenceWeekStart(response.week_start);
         setCustomLessons(response.custom_lessons || []);
         setExams(response.exams || []);
+        setTimeSlots(response.time_slots || []);
         setExamsError(Boolean(response.exams_error));
       })
       .catch(err => {
@@ -189,19 +192,29 @@ const Timetable: React.FC = () => {
                     <p className="mt-0.5 text-xs text-surface-500">{format(date, 'd. MMMM', { locale: de })}</p>
                   </div>
                   <div className="space-y-2 p-3">
-                    {exams.filter(exam => exam.date === day.date).map(exam => (
-                      <Link
-                        key={exam.id}
-                        to={`${basePath}/study-groups`}
-                        className="block rounded-xl border border-violet-200 bg-violet-50 p-3 transition-colors hover:border-violet-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 dark:border-violet-800 dark:bg-violet-950/40 dark:hover:border-violet-600"
-                      >
-                        <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300"><AcademicCapIcon className="h-4 w-4" aria-hidden="true" />{exam.type || 'Klausur'}</p>
-                        {exam.course_name && <p className="mt-1 break-words font-semibold text-surface-900 dark:text-white">{exam.course_name}</p>}
-                        {(exam.hours || exam.duration_label) && <p className="mt-1 text-xs text-violet-700 dark:text-violet-300">{[exam.hours, exam.duration_label].filter(Boolean).join(' · ')}</p>}
-                        <p className="mt-2 text-xs text-violet-600 dark:text-violet-400">Aus Lerngruppen <span aria-hidden="true">→</span></p>
-                      </Link>
-                    ))}
-                    {day.lessons.length === 0 ? <p className="py-8 text-center text-sm text-surface-400">Unterrichtsfrei</p> : day.lessons.map((lesson, index) => (
+                    {day.lessons.length === 0 && !exams.some(exam => exam.date === day.date) && <p className="py-8 text-center text-sm text-surface-400">Unterrichtsfrei</p>}
+                    {timetableEntries(day.lessons, exams.filter(exam => exam.date === day.date), timeSlots).map(({ lesson, exam, replaced }, index) => exam ? (
+                      <article key={`exam-${exam.id}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-950/40">
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                          <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300"><AcademicCapIcon className="h-4 w-4" aria-hidden="true" />{exam.type || 'Klausur'}</p>
+                          {lesson.period != null && <span className="badge badge-surface">{lesson.period} Std.</span>}
+                        </div>
+                        <p className="break-words font-semibold text-surface-900 dark:text-white">{lesson.subject}</p>
+                        <div className="mt-2 space-y-1 text-xs text-surface-500 dark:text-surface-400">
+                          {(lesson.start_time || lesson.end_time) && <p className="flex items-center gap-1.5"><ClockIcon className="h-3.5 w-3.5" />{lesson.start_time}{lesson.end_time ? ` – ${lesson.end_time}` : ''}</p>}
+                          {lesson.period == null && <p>{exam.hours || 'Stunden nicht angegeben'}</p>}
+                          {exam.duration_label && <p>Bearbeitungszeit: {exam.duration_label}</p>}
+                          {lesson.teacher && <p className="flex items-center gap-1.5"><UserIcon className="h-3.5 w-3.5" />{lesson.teacher}</p>}
+                          {lesson.room && <p className="flex items-center gap-1.5"><MapPinIcon className="h-3.5 w-3.5" />{lesson.room}</p>}
+                        </div>
+                        {Boolean(replaced?.length) && <p className="mt-2 text-xs font-medium text-violet-700 dark:text-violet-300">Statt: {replaced!.join(', ')}</p>}
+                        <HomeworkPreview homework={lesson.homework} />
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-violet-600 dark:text-violet-400">
+                          <Link to={`${basePath}/study-groups`}>Aus Lerngruppen →</Link>
+                          {lesson.course_id && <Link to={`${basePath}/courses/${lesson.course_id}`}>Mein Unterricht →</Link>}
+                        </div>
+                      </article>
+                    ) : (
                       <article
                         key={lesson.id || `${day.date}-${index}`}
                         className={`rounded-xl border p-3 transition-all ${lesson.cancelled ? 'border-red-200 bg-red-50/70 opacity-75 dark:border-red-900 dark:bg-red-950/30' : 'bg-white dark:bg-surface-900'} ${lesson.course_id ? 'cursor-pointer hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:hover:border-primary-700 dark:focus-visible:ring-offset-surface-900' : ''}`}
