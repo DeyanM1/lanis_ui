@@ -50,10 +50,10 @@ function toneFor(key: string): string {
 const AttendanceStat: React.FC<{ name: string; value: number }> = ({ name, value }) => {
   const Icon = iconFor(name);
   return (
-    <div className="rounded-xl border border-surface-100 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-800/60">
+    <div className="min-w-0 rounded-xl border border-surface-100 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-800/60">
       <div className="flex items-center gap-2">
-        <Icon className={`h-4 w-4 ${toneFor(name)}`} />
-        <span className="text-xs font-medium text-surface-500 dark:text-surface-400">{labelFor(name)}</span>
+        <Icon className={`h-4 w-4 shrink-0 ${toneFor(name)}`} />
+        <span className="min-w-0 break-words [overflow-wrap:anywhere] text-xs font-medium text-surface-500 dark:text-surface-400">{labelFor(name)}</span>
       </div>
       <p className="mt-2 text-xl font-bold text-surface-900 dark:text-white">{formatCount(value)}</p>
       <p className="text-xs text-surface-400 dark:text-surface-500">Unterrichtsstunden</p>
@@ -64,7 +64,7 @@ const AttendanceStat: React.FC<{ name: string; value: number }> = ({ name, value
 const CourseAttendanceCard: React.FC<{ course: AttendanceCourse }> = ({ course }) => {
   const stats = Object.entries(course.attendance_summary);
   return (
-    <article className="card">
+    <article className="card min-w-0">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-950/40">
           <AcademicCapIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
@@ -150,7 +150,7 @@ const AttendanceOverview: React.FC = () => {
   }
 
   return (
-    <div className="min-h-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+    <div className="min-h-full min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <SEO title="Anwesenheit" description="Deine Anwesenheitsübersicht aus Mein Unterricht im Schulportal Hessen." noindex />
       <div className="mx-auto max-w-7xl">
         <header className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -197,7 +197,9 @@ const AttendanceOverview: React.FC = () => {
             <ChartBarIcon className="mb-3 h-10 w-10 text-surface-300" />
             <h2 className="font-semibold text-surface-900 dark:text-white">Keine Anwesenheitsdaten</h2>
             <p className="mt-1 max-w-md text-sm text-surface-500 dark:text-surface-400">
-              Für dieses Schulportal-Konto wurden in Mein Unterricht noch keine Anwesenheitsübersichten gefunden.
+              {data.failed_course_count > 0
+                ? 'Die Anwesenheitsdaten konnten nicht geladen werden. Bitte versuche es erneut.'
+                : 'Für dieses Schulportal-Konto wurden in Mein Unterricht noch keine Anwesenheitsübersichten gefunden.'}
             </p>
           </div>
         ) : !error && data ? (
@@ -205,7 +207,7 @@ const AttendanceOverview: React.FC = () => {
             <div className="mb-6 rounded-xl border border-primary-100 bg-primary-50/70 p-4 dark:border-primary-900 dark:bg-primary-950/40">
               <p className="text-sm text-primary-900 dark:text-primary-100">
                 Zusammengefasst aus {data.attendance_course_count} von {data.course_count} Kursen.
-                {data.failed_course_count > 0 && ` ${data.failed_course_count} Kurs${data.failed_course_count === 1 ? '' : 'e'} konnten nicht geladen werden.`}
+                {data.failed_course_count > 0 && ` ${data.failed_course_count} Kurs${data.failed_course_count === 1 ? ' konnte' : 'e konnten'} nicht geladen werden.`}
               </p>
             </div>
 
@@ -215,7 +217,7 @@ const AttendanceOverview: React.FC = () => {
                 <h2 className="text-lg font-semibold text-surface-900 dark:text-white">Gesamt</h2>
               </div>
               {totalStats.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {totalStats.map(([name, value]) => <AttendanceStat key={name} name={name} value={value} />)}
                 </div>
               ) : (
