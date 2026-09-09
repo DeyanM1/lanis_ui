@@ -375,6 +375,30 @@ const TimetableSettings: React.FC = () => {
         </select>
       </section>
 
+      <section className="card">
+        <h3 className="font-semibold text-surface-900 dark:text-white">Inhalte im Stundenplan</h3>
+        <p className="mt-1 text-sm text-surface-500">Wähle, welche zusätzlichen Inhalte angezeigt werden. Wird mit deinem Lanis-Konto synchronisiert.</p>
+        <div className="mt-4 space-y-4">
+          {([
+            ['show_homework', 'Hausaufgaben anzeigen', 'Zeigt Hausaufgaben bei den zugehörigen Unterrichtsstunden.'],
+            ['show_exams', 'Klausuren anzeigen', 'Zeigt Klausuren anstelle der betroffenen Unterrichtsstunden.'],
+          ] as const).map(([key, label, description]) => (
+            <label key={key} className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                checked={preferences.timetable[key]}
+                onChange={event => void updatePreferences({ timetable: { [key]: event.target.checked } })}
+              />
+              <span>
+                <span className="block text-sm font-medium text-surface-900 dark:text-white">{label}</span>
+                <span className="mt-0.5 block text-xs text-surface-500">{description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
+
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
       {message && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{message}</p>}
 

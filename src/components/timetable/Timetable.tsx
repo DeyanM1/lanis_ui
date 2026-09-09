@@ -97,7 +97,8 @@ const Timetable: React.FC = () => {
       weekOverride,
     );
   }, [activeWeek, customLessons, referenceWeekStart, selectedDays, timetableViewMode, weekOverride]);
-  const visibleExamCount = visibleDays.reduce((total, day) => total + exams.filter(exam => exam.date === day.date).length, 0);
+  const displayedExams = preferences.timetable.show_exams ? exams : [];
+  const visibleExamCount = visibleDays.reduce((total, day) => total + displayedExams.filter(exam => exam.date === day.date).length, 0);
   const lessonCount = useMemo(() => visibleDays.reduce((total, day) => total + day.lessons.length, 0), [visibleDays]);
   const firstVisibleDate = visibleDays[0]?.date ? new Date(`${visibleDays[0].date}T12:00:00`) : undefined;
   const lastVisibleDay = visibleDays[visibleDays.length - 1];
@@ -153,7 +154,7 @@ const Timetable: React.FC = () => {
           )}
         </div>
 
-        {examsError && (
+        {preferences.timetable.show_exams && examsError && (
           <div role="status" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
             <span>Klausurtermine aus Lerngruppen konnten nicht geladen werden.</span>
             <button type="button" className="font-medium text-primary-600 dark:text-primary-400" onClick={() => setReloadKey(value => value + 1)}>Erneut versuchen</button>
@@ -192,8 +193,8 @@ const Timetable: React.FC = () => {
                     <p className="mt-0.5 text-xs text-surface-500">{format(date, 'd. MMMM', { locale: de })}</p>
                   </div>
                   <div className="space-y-2 p-3">
-                    {day.lessons.length === 0 && !exams.some(exam => exam.date === day.date) && <p className="py-8 text-center text-sm text-surface-400">Unterrichtsfrei</p>}
-                    {timetableEntries(day.lessons, exams.filter(exam => exam.date === day.date), timeSlots).map(({ lesson, exam, replaced }, index) => exam ? (
+                    {day.lessons.length === 0 && !displayedExams.some(exam => exam.date === day.date) && <p className="py-8 text-center text-sm text-surface-400">Unterrichtsfrei</p>}
+                    {timetableEntries(day.lessons, displayedExams.filter(exam => exam.date === day.date), timeSlots).map(({ lesson, exam, replaced }, index) => exam ? (
                       <article key={`exam-${exam.id}-${index}`} className="rounded-xl border border-violet-200 bg-violet-50 p-3 dark:border-violet-800 dark:bg-violet-950/40">
                         <div className="mb-2 flex items-start justify-between gap-2">
                           <p className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 dark:text-violet-300"><AcademicCapIcon className="h-4 w-4" aria-hidden="true" />{exam.type || 'Klausur'}</p>
@@ -288,7 +289,8 @@ const WeekBadge: React.FC<{ week: 'A' | 'B'; compact?: boolean }> = ({ week, com
 );
 
 const HomeworkPreview: React.FC<{ homework?: TimetableLesson['homework']; compact?: boolean }> = ({ homework, compact = false }) => {
-  if (!homework?.length) return null;
+  const { preferences } = usePreferences();
+  if (!preferences.timetable.show_homework || !homework?.length) return null;
   const allDone = homework.every(item => item.done);
 
   return (

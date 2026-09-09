@@ -88,6 +88,8 @@ export interface UserPreferences {
   };
   timetable: {
     view_mode: TimetableViewMode;
+    show_homework: boolean;
+    show_exams: boolean;
   };
   homework: {
     completed_display: CompletedHomeworkDisplay;
