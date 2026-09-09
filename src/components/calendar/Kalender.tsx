@@ -229,7 +229,7 @@ const Kalender: React.FC = () => {
               <div key={i} className="skeleton h-8 rounded" />
             ))}
           </div>
-          <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-hidden border border-surface-100 dark:border-surface-700">
+          <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[80px] sm:auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-hidden border border-surface-100 dark:border-surface-700">
             {Array.from({ length: 35 }).map((_, i) => (
               <div key={i} className="bg-white dark:bg-surface-900 min-h-0 p-1 sm:p-1.5">
                 <div className="skeleton h-6 w-6 rounded-full mb-1" />
@@ -369,11 +369,7 @@ const Kalender: React.FC = () => {
         </div>
 
         <div
-          className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-y-auto overflow-x-hidden border border-surface-100 dark:border-surface-700"
-          style={{
-            gridTemplateRows: `repeat(${calendarDays.length / 7}, 160px)`,
-            gridAutoRows: '160px',
-          }}
+          className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[80px] sm:auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-y-auto overflow-x-hidden border border-surface-100 dark:border-surface-700"
         >
           {calendarDays.map((day) => {
             const dateKey = format(day, 'yyyy-MM-dd');
