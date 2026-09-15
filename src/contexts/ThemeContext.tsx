@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ThemeColor, ThemeMode } from '../types';
-import { applyThemeAssets, isThemeColor, THEME_COLOR_HEX } from '../utils/themeAssets';
+import { applyThemeAssets, getThemeColorHex, isThemeColor } from '../utils/themeAssets';
 
 export type { ThemeColor, ThemeMode } from '../types';
 
@@ -12,7 +12,10 @@ interface ThemeContextType {
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
   themeColor: ThemeColor;
-  setThemeColor: (color: ThemeColor) => void;
+  customColor: string;
+  fontFamily: string;
+  setFontFamily: (fontFamily: string) => void;
+  setThemeColor: (color: ThemeColor, customColor?: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -27,10 +30,12 @@ const THEME_COLOR_KEY = 'lanis_theme_color';
 const DARK_MODE_KEY = 'lanis_dark_mode';
 const OLED_MODE_KEY = 'lanis_oled_mode';
 const THEME_MODE_KEY = 'lanis_theme_mode';
+const CUSTOM_COLOR_KEY = 'lanis_custom_color';
+const FONT_FAMILY_KEY = 'lanis_font_family';
 
 type ColorScale = Record<string, string>;
 
-const THEMES: Record<ThemeColor, ColorScale> = {
+const THEMES: Record<Exclude<ThemeColor, 'custom'>, ColorScale> = {
   emerald: {
     50: '236 253 245', 100: '209 250 229', 200: '167 243 208',
     300: '110 231 183', 400: '52 211 153', 500: '16 185 129',
@@ -61,17 +66,31 @@ const THEMES: Record<ThemeColor, ColorScale> = {
     600: '217 119 6',   700: '180 83 9',  800: '146 64 14',
     900: '120 53 15',   950: '69 26 3',
   },
-  cyan: {
-    50: '236 254 255', 100: '207 250 254', 200: '165 243 252',
-    300: '103 232 249', 400: '34 211 238', 500: '6 182 212',
-    600: '8 145 178',   700: '14 116 144', 800: '21 94 117',
-    900: '22 78 99',    950: '8 51 68',
-  },
 };
 
 function applyPrimaryTheme(color: ThemeColor) {
   document.documentElement.setAttribute('data-theme', color);
   applyThemeAssets(color);
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!match) return null;
+  return [0, 2, 4].map(index => Number.parseInt(match[1].slice(index, index + 2), 16)) as [number, number, number];
+}
+
+function applyCustomScale(customColor: string) {
+  const rgb = hexToRgb(customColor);
+  if (!rgb) return;
+  const root = document.documentElement;
+  const scale = [0.95, 0.9, 0.78, 0.6, 0.3, 0, 0.12, 0.28, 0.45, 0.62, 0.78];
+  [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].forEach((shade, index) => {
+    const amount = scale[index];
+    const target = shade < 500 ? [255, 255, 255] : [0, 0, 0];
+    const factor = shade < 500 ? amount : amount;
+    const values = rgb.map((channel, channelIndex) => Math.round(channel + (target[channelIndex] - channel) * factor));
+    root.style.setProperty(`--color-primary-${shade}`, values.join(' '));
+  });
 }
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -90,8 +109,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [themeColor, setThemeColorState] = useState<ThemeColor>(() => {
     const storedTheme = localStorage.getItem(THEME_COLOR_KEY);
-    return isThemeColor(storedTheme) ? storedTheme : 'cyan';
+    return storedTheme === 'cyan' ? 'emerald' : isThemeColor(storedTheme) ? storedTheme : 'emerald';
   });
+  const [customColor, setCustomColorState] = useState(() => localStorage.getItem(CUSTOM_COLOR_KEY) || '');
+  const [fontFamily, setFontFamilyState] = useState(() => localStorage.getItem(FONT_FAMILY_KEY) || 'Outfit');
 
   const isOled = themeMode === 'oled';
   const isDark = themeMode === 'dark' || isOled || (themeMode === 'system' && systemDark);
@@ -112,10 +133,19 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setThemeMode(isOled ? 'dark' : 'oled');
   }, [isOled, setThemeMode]);
 
-  const setThemeColor = useCallback((color: ThemeColor) => {
+  const setThemeColor = useCallback((color: ThemeColor, nextCustomColor = customColor) => {
     setThemeColorState(color);
+    setCustomColorState(nextCustomColor);
     localStorage.setItem(THEME_COLOR_KEY, color);
+    localStorage.setItem(CUSTOM_COLOR_KEY, nextCustomColor);
     applyPrimaryTheme(color);
+    if (color === 'custom') applyCustomScale(nextCustomColor);
+  }, [customColor]);
+
+  const setFontFamily = useCallback((nextFontFamily: string) => {
+    setFontFamilyState(nextFontFamily);
+    localStorage.setItem(FONT_FAMILY_KEY, nextFontFamily);
+    document.documentElement.style.setProperty('--app-font-family', nextFontFamily || 'system-ui');
   }, []);
 
   useEffect(() => {
@@ -137,7 +167,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     applyPrimaryTheme(themeColor);
-  }, [themeColor]);
+    if (themeColor === 'custom') applyCustomScale(customColor);
+  }, [themeColor, customColor]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--app-font-family', fontFamily);
+  }, [fontFamily]);
 
   useEffect(() => {
     let meta = document.querySelector('meta[name="theme-color"]');
@@ -146,11 +181,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       meta.setAttribute('name', 'theme-color');
       document.head.appendChild(meta);
     }
-    meta.setAttribute('content', isOled ? '#000000' : isDark ? '#0a0a0a' : THEME_COLOR_HEX[themeColor]);
-  }, [themeColor, isDark, isOled]);
+    meta.setAttribute('content', isOled ? '#000000' : isDark ? '#0a0a0a' : getThemeColorHex(themeColor, customColor));
+  }, [themeColor, customColor, isDark, isOled]);
 
   return (
-    <ThemeContext.Provider value={{ isDark, isOled, toggleDark, toggleOled, themeMode, setThemeMode, themeColor, setThemeColor }}>
+    <ThemeContext.Provider value={{ isDark, isOled, toggleDark, toggleOled, themeMode, setThemeMode, themeColor, customColor, setThemeColor, fontFamily, setFontFamily }}>
       {children}
     </ThemeContext.Provider>
   );

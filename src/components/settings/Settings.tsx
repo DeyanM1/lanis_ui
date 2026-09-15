@@ -60,8 +60,9 @@ const themeColors: { key: ThemeColor; label: string; hex: string }[] = [
   { key: 'amethyst', label: 'Amethyst', hex: '#a855f7' },
   { key: 'ruby', label: 'Rubin', hex: '#f43f5e' },
   { key: 'amber', label: 'Bernstein', hex: '#f59e0b' },
-  { key: 'cyan', label: 'Cyan', hex: '#06b6d4' },
 ];
+
+const fontOptions = ['Outfit', 'Inter', 'Roboto', 'Open Sans', 'Nunito', 'system-ui'];
 
 const defaultNotificationPreferences: NotificationPreferences = {
   enabled: false,
@@ -463,8 +464,10 @@ const SettingsIndex: React.FC<{
 );
 
 const Settings: React.FC = () => {
-  const { isDark, themeMode, setThemeMode, themeColor, setThemeColor } = useTheme();
-  const { updatePreferences, syncError } = usePreferences();
+  const {
+    isDark, themeMode, setThemeMode, themeColor, customColor, setThemeColor, fontFamily, setFontFamily,
+  } = useTheme();
+  const { updatePreferences, isSaving, syncError } = usePreferences();
   const { token, user } = useAuth();
   const location = useLocation();
   const basePath = useBasePath();
@@ -472,6 +475,10 @@ const Settings: React.FC = () => {
   const [hasNativeSubstitutionPlan, setHasNativeSubstitutionPlan] = useState(
     () => getModuleAvailability(readModulesCache(user)).hasNativeSubstitutionPlan,
   );
+  const [draftThemeMode, setDraftThemeMode] = useState(themeMode);
+  const [draftThemeColor, setDraftThemeColor] = useState(themeColor);
+  const [draftCustomColor, setDraftCustomColor] = useState(customColor);
+  const [draftFontFamily, setDraftFontFamily] = useState(fontFamily);
   const visibleSettingsSections = settingsSections.filter(item => (
     item.id !== 'vertretungsplan' || hasNativeSubstitutionPlan
   ));
@@ -921,14 +928,32 @@ const Settings: React.FC = () => {
     el?.showDialog(true);
   };
 
-  const changeThemeMode = (mode: 'system' | 'light' | 'dark' | 'oled') => {
-    setThemeMode(mode);
-    void updatePreferences({ appearance: { theme_mode: mode } });
+  useEffect(() => {
+    setDraftThemeMode(themeMode);
+    setDraftThemeColor(themeColor);
+    setDraftCustomColor(customColor);
+    setDraftFontFamily(fontFamily);
+  }, [themeMode, themeColor, customColor, fontFamily, section]);
+
+  const acceptAppearance = async () => {
+    setThemeMode(draftThemeMode);
+    setThemeColor(draftThemeColor, draftCustomColor);
+    setFontFamily(draftFontFamily || 'Outfit');
+    await updatePreferences({
+      appearance: {
+        theme_mode: draftThemeMode,
+        theme_color: draftThemeColor,
+        custom_color: draftCustomColor,
+        font_family: draftFontFamily || 'Outfit',
+      },
+    });
   };
 
-  const changeThemeColor = (color: ThemeColor) => {
-    setThemeColor(color);
-    void updatePreferences({ appearance: { theme_color: color } });
+  const cancelAppearance = () => {
+    setDraftThemeMode(themeMode);
+    setDraftThemeColor(themeColor);
+    setDraftCustomColor(customColor);
+    setDraftFontFamily(fontFamily);
   };
 
   return (
@@ -979,8 +1004,8 @@ const Settings: React.FC = () => {
               <button
                 key={option.id}
                 type="button"
-                onClick={() => changeThemeMode(option.id)}
-                className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-all ${themeMode === option.id
+                onClick={() => setDraftThemeMode(option.id)}
+                className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-medium transition-all ${draftThemeMode === option.id
                   ? 'border-primary-500 bg-primary-50 text-primary-800 ring-2 ring-primary-500/15 dark:bg-primary-950/40 dark:text-primary-200'
                   : 'border-surface-200 bg-white text-surface-600 hover:border-primary-300 dark:border-surface-700 dark:bg-surface-800 dark:text-surface-300'}`}
               >
@@ -999,27 +1024,99 @@ const Settings: React.FC = () => {
             {themeColors.map((c) => (
               <button
                 key={c.key}
-                onClick={() => changeThemeColor(c.key)}
+                onClick={() => setDraftThemeColor(c.key)}
                 className="flex flex-col items-center gap-2 p-3 rounded-xl border transition-all duration-200 ease-out-expo active:scale-95"
                 style={{
-                  borderColor: themeColor === c.key
+                  borderColor: draftThemeColor === c.key
                     ? c.hex
                     : `rgb(var(--color-surface-${isDark ? '700' : '200'}))`,
-                  backgroundColor: themeColor === c.key ? `${c.hex}0f` : 'transparent',
+                  backgroundColor: draftThemeColor === c.key ? `${c.hex}0f` : 'transparent',
                 }}
               >
                 <span
                   className="w-8 h-8 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: c.hex }}
                 >
-                  {themeColor === c.key && (
+                  {draftThemeColor === c.key && (
                     <CheckIcon className="w-4 h-4 text-white" />
                   )}
                 </span>
                 <span className="text-xs font-medium text-surface-600 dark:text-surface-300">{c.label}</span>
               </button>
             ))}
+            <label
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border p-3 transition-all duration-200 ${
+                draftThemeColor === 'custom' ? 'border-primary-500 bg-primary-50/50 ring-2 ring-primary-500/15 dark:bg-primary-950/40' : 'border-surface-200 dark:border-surface-700'
+              }`}
+              htmlFor="custom-theme-color"
+            >
+              <span className="relative h-8 w-8 overflow-hidden rounded-full border border-surface-200 dark:border-surface-600">
+                <input
+                  id="custom-theme-color"
+                  type="color"
+                  value={/^#[0-9a-f]{6}$/i.test(draftCustomColor) ? draftCustomColor : '#10b981'}
+                  onChange={event => {
+                    setDraftCustomColor(event.target.value);
+                    setDraftThemeColor('custom');
+                  }}
+                  className="absolute -inset-2 h-12 w-12 cursor-pointer"
+                  aria-label="Eigene Primärfarbe auswählen"
+                />
+              </span>
+              <span className="text-xs font-medium text-surface-600 dark:text-surface-300">Benutzerdefiniert</span>
+            </label>
           </div>
+        </div>
+
+        <div className="card">
+          <h3 className="mb-1 text-base font-semibold text-surface-900 dark:text-surface-100">Schriftart</h3>
+          <p className="mb-5 text-sm text-surface-500">Wähle die Schriftart für die gesamte Website.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="site-font-family">Schriftart</label>
+              <select
+                id="site-font-family"
+                className="input"
+                value={fontOptions.includes(draftFontFamily) ? draftFontFamily : 'custom'}
+                onChange={event => setDraftFontFamily(event.target.value === 'custom' ? 'Arial' : event.target.value)}
+              >
+                {fontOptions.map(font => <option key={font} value={font}>{font}</option>)}
+                <option value="custom">Eigene Schriftart</option>
+              </select>
+            </div>
+            {(!fontOptions.includes(draftFontFamily) || draftFontFamily === '') && (
+              <div>
+                <label className="label" htmlFor="custom-font-family">Name der Schriftart</label>
+                <input
+                  id="custom-font-family"
+                  className="input"
+                  value={draftFontFamily}
+                  onChange={event => setDraftFontFamily(event.target.value)}
+                  placeholder="z. B. Arial"
+                  maxLength={80}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={cancelAppearance}
+            disabled={isSaving}
+            className="btn btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            onClick={() => void acceptAppearance()}
+            disabled={isSaving}
+            className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSaving ? 'Speichere…' : 'Übernehmen'}
+          </button>
         </div>
 
           </>
@@ -1349,28 +1446,6 @@ const Settings: React.FC = () => {
         </>
         )}
 
-        {/* Preview Card */}
-        {section === 'appearance' && (
-        <div className="card">
-          <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100 mb-4">Vorschau</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-xl">
-              <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
-                <span className="text-white text-sm font-bold">S</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-primary-900">Primäre Oberfläche</p>
-                <p className="text-xs text-primary-700">Verwendet deine ausgewählte Farbe</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button className="btn btn-primary text-xs px-3 py-2">Primär Button</button>
-              <button className="btn btn-secondary text-xs px-3 py-2">Sekundär</button>
-              <button className="btn btn-ghost text-xs px-3 py-2" onClick={() => setGhostClicks(c => c + 1)}>Ghost</button>
-            </div>
-          </div>
-        </div>
-        )}
 
         {/* App installieren */}
         {section === 'app' && installStatus !== 'unsupported' && (

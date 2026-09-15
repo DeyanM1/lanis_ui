@@ -9,7 +9,7 @@ export const CURRENT_ONBOARDING_VERSION = 1;
 const LEGACY_PREFERENCES_OWNER_KEY = 'lanis_preferences_legacy_owner';
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
-  appearance: { theme_mode: 'system', theme_color: 'cyan' },
+  appearance: { theme_mode: 'system', theme_color: 'emerald', custom_color: '', font_family: 'Outfit' },
   sidebar: { order: DEFAULT_SIDEBAR_ORDER, hidden_items: [] },
   dashboard: { pinned_modules: [], hidden_modules: [], view_mode: 'grid' },
   timetable: { view_mode: 'rolling', show_homework: true, show_exams: true },
@@ -91,10 +91,12 @@ const legacyPreferences = (): UserPreferences => {
           ? 'light'
           : 'system';
   const color = localStorage.getItem('lanis_theme_color');
-  const themeColor = color === 'emerald' || color === 'sapphire' || color === 'amethyst'
-    || color === 'ruby' || color === 'amber' || color === 'cyan'
+  const themeColor = color === 'cyan'
+    ? 'emerald'
+    : color === 'emerald' || color === 'sapphire' || color === 'amethyst'
+    || color === 'ruby' || color === 'amber' || color === 'custom'
     ? color
-    : 'cyan';
+    : 'emerald';
   const timetableMode = localStorage.getItem('lanis_timetable_view_mode');
   let pinnedModules: string[] = [];
   try {
@@ -133,7 +135,7 @@ const readCache = (cacheKey: string | null): CachedPreferences | null => {
 
 export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: boolean }> = ({ children, sync = true }) => {
   const { token, user } = useAuth();
-  const { setThemeColor, setThemeMode } = useTheme();
+  const { setThemeColor, setThemeMode, setFontFamily } = useTheme();
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_USER_PREFERENCES);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -147,8 +149,9 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
     preferencesRef.current = next;
     setPreferences(next);
     setThemeMode(next.appearance.theme_mode);
-    setThemeColor(next.appearance.theme_color);
-  }, [setThemeColor, setThemeMode]);
+    setThemeColor(next.appearance.theme_color, next.appearance.custom_color || '');
+    setFontFamily(next.appearance.font_family || 'Outfit');
+  }, [setFontFamily, setThemeColor, setThemeMode]);
 
   const writeCache = useCallback((next: UserPreferences, dirty: boolean) => {
     if (!cacheKey) return;

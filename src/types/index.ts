@@ -65,7 +65,7 @@ export interface User {
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'oled';
-export type ThemeColor = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'amber' | 'cyan';
+export type ThemeColor = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'amber' | 'custom';
 export type DashboardViewMode = 'grid' | 'list';
 export type TimetableViewMode = 'rolling' | 'week';
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
@@ -76,6 +76,8 @@ export interface UserPreferences {
   appearance: {
     theme_mode: ThemeMode;
     theme_color: ThemeColor;
+    custom_color?: string;
+    font_family?: string;
   };
   sidebar: {
     order: string[];

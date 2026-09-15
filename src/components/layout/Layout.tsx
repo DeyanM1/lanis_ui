@@ -29,7 +29,7 @@ import GlobalSearch from '../search/GlobalSearch';
 import InstallPrompt from '../pwa/InstallPrompt';
 import { getModuleAvailability, readModulesCache, writeModulesCache } from '../../utils/moduleCache';
 import type { CachedModule } from '../../utils/moduleCache';
-import { getThemeIconUrl, getThemeManifestUrl, THEME_COLOR_HEX } from '../../utils/themeAssets';
+import { getThemeIconUrl, getThemeManifestUrl, getThemeColorHex } from '../../utils/themeAssets';
 import AppIcon from '../AppIcon';
 import { normalizeSidebarOrder, SidebarItemId, isDivider } from '../../utils/sidebarNavigation';
 
@@ -50,7 +50,7 @@ const SIDEBAR_COLLAPSED_KEY = 'lanis_sidebar_collapsed';
 const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const { user, token, logout } = useAuth();
   const { preferences } = usePreferences();
-  const { themeColor } = useTheme();
+  const { themeColor, customColor } = useTheme();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(() => (
@@ -78,7 +78,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     el.manualApple = true;
     el.manualChrome = true;
     el.useLocalStorage = true;
-    el.styles = { '--tint-color': THEME_COLOR_HEX[themeColor] };
+    el.styles = { '--tint-color': getThemeColorHex(themeColor, customColor) };
   }, []);
 
   React.useEffect(() => {
@@ -86,8 +86,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     if (!el) return;
     el.icon = appIconUrl;
     el.manifestUrl = manifestUrl;
-    el.styles = { '--tint-color': THEME_COLOR_HEX[themeColor] };
-  }, [appIconUrl, manifestUrl, themeColor]);
+    el.styles = { '--tint-color': getThemeColorHex(themeColor, customColor) };
+  }, [appIconUrl, manifestUrl, themeColor, customColor]);
 
   React.useLayoutEffect(() => {
     mainRef.current?.scrollTo(0, 0);

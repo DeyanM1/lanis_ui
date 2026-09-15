@@ -44,10 +44,12 @@ const readAppearance = (values: Map<string, string | null>) => {
           ? 'light'
           : 'system';
   const storedColor = values.get('lanis_theme_color');
-  const themeColor: ThemeColor = storedColor === 'emerald' || storedColor === 'sapphire' || storedColor === 'amethyst'
-    || storedColor === 'ruby' || storedColor === 'amber' || storedColor === 'cyan'
+  const themeColor: ThemeColor = storedColor === 'cyan'
+    ? 'emerald'
+    : storedColor === 'emerald' || storedColor === 'sapphire' || storedColor === 'amethyst'
+    || storedColor === 'ruby' || storedColor === 'amber' || storedColor === 'custom'
     ? storedColor
-    : 'cyan';
+    : 'emerald';
   return { themeMode, themeColor };
 };
 

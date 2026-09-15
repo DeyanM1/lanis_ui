@@ -44,7 +44,6 @@ const themeModes: Array<{ id: ThemeMode; label: string; note: string }> = [
 ];
 
 const themeColors: Array<{ id: ThemeColor; label: string; hex: string }> = [
-  { id: 'cyan', label: 'Cyan', hex: '#06b6d4' },
   { id: 'sapphire', label: 'Saphir', hex: '#3b82f6' },
   { id: 'emerald', label: 'Smaragd', hex: '#10b981' },
   { id: 'amethyst', label: 'Amethyst', hex: '#a855f7' },
