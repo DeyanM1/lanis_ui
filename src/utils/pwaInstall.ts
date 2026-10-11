@@ -70,15 +70,11 @@ const supportsThirdPartyIosInstall = () => {
     && 'PushManager' in window;
 };
 
-const isMacSafariInstallable = () => {
-  if (!isSafari() || !/Macintosh/i.test(window.navigator.userAgent) || window.navigator.maxTouchPoints) return false;
-  const safariVersion = /Version\/(\d{2})\./i.exec(window.navigator.userAgent);
-  if (!safariVersion || Number(safariVersion[1]) < 17) return false;
-  const audioCheck = document.createElement('audio').canPlayType('audio/wav; codecs="1"');
-  const webglCheck = typeof OffscreenCanvas !== 'undefined'
-    && Boolean(new OffscreenCanvas(1, 1).getContext('webgl'));
-  return Boolean(audioCheck && webglCheck);
-};
+const isMacSafari = () => (
+  isSafari()
+  && /Macintosh/i.test(window.navigator.userAgent)
+  && !window.navigator.maxTouchPoints
+);
 
 export const getInstallAvailability = (): InstallAvailability => {
   if (isStandaloneMode()) return 'installed';
@@ -87,6 +83,9 @@ export const getInstallAvailability = (): InstallAvailability => {
     if (isSafari()) return 'ios-safari';
     return supportsThirdPartyIosInstall() ? 'ios-browser' : 'ios-other-browser';
   }
-  if (isMacSafariInstallable()) return 'macos-safari';
+  // Safari does not expose the host macOS version. Safari 17 also runs on
+  // Monterey and Ventura, while Add to Dock requires Sonoma or newer, so this
+  // state is informational only and must not enable automatic promotion.
+  if (isMacSafari()) return 'macos-safari';
   return 'unsupported';
 };

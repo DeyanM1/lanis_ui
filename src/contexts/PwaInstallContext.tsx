@@ -166,7 +166,7 @@ export const PwaInstallProvider: React.FC<{
   }, [updatePromotionState]);
 
   const requestInstall = useCallback(async (source: 'promotion' | 'settings' = 'settings'): Promise<InstallResult> => {
-    if (availability === 'ios-safari' || availability === 'ios-browser' || availability === 'macos-safari') {
+    if (availability === 'ios-safari' || availability === 'ios-browser') {
       const pwa = document.querySelector('pwa-install') as PwaInstallElement | null;
       if (!pwa) return 'unavailable';
       pwa.showDialog(true);
@@ -198,8 +198,7 @@ export const PwaInstallProvider: React.FC<{
 
   const canInstall = availability === 'native'
     || availability === 'ios-safari'
-    || availability === 'ios-browser'
-    || availability === 'macos-safari';
+    || availability === 'ios-browser';
   const shouldPromote = automaticPromotion
     && canInstall
     && promotionState.sessionCount >= 2

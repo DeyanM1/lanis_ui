@@ -1472,11 +1472,17 @@ const Settings: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">
-                  {installAvailability === 'ios-other-browser' ? 'Für die Installation Safari verwenden' : 'Installation nicht verfügbar'}
+                  {installAvailability === 'ios-other-browser'
+                    ? 'Für die Installation Safari verwenden'
+                    : installAvailability === 'macos-safari'
+                      ? 'Installation über Safari'
+                      : 'Installation nicht verfügbar'}
                 </h3>
                 <p className="mt-1 text-sm text-surface-500">
                   {installAvailability === 'ios-other-browser'
                     ? 'Öffne Lanis in Safari und füge es dort über das Teilen-Menü zum Home-Bildschirm hinzu.'
+                    : installAvailability === 'macos-safari'
+                      ? 'Unter macOS Sonoma oder neuer kannst du in Safari „Ablage“ → „Zum Dock hinzufügen“ wählen. Ältere macOS-Versionen unterstützen diese Installation nicht.'
                     : 'Dieser Browser bietet aktuell keine App-Installation an. Du kannst Lanis trotzdem wie gewohnt nutzen.'}
                 </p>
               </div>
