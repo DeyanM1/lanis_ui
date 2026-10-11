@@ -243,6 +243,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
           manifest-url={manifestUrl}
           manual-apple="true"
           manual-chrome="true"
+          disable-chrome="true"
+          disable-android-fallback="true"
           use-local-storage="true"
           name="Lanis"
           icon={appIconUrl}
