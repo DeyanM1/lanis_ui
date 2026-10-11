@@ -8,7 +8,7 @@ const InstallPromotion: React.FC = () => {
 
   if (!shouldPromote) return null;
 
-  const buttonLabel = availability === 'ios-safari' ? 'So geht’s' : 'App installieren';
+  const buttonLabel = availability === 'ios-safari' || availability === 'macos-safari' ? 'So geht’s' : 'App installieren';
 
   return (
     <section

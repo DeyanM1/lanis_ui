@@ -1,6 +1,7 @@
 export type InstallAvailability =
   | 'native'
   | 'ios-safari'
+  | 'macos-safari'
   | 'ios-other-browser'
   | 'unsupported'
   | 'installed';
@@ -55,5 +56,6 @@ export const getInstallAvailability = (): InstallAvailability => {
   if (isStandaloneMode()) return 'installed';
   if (deferredPrompt) return 'native';
   if (isIosDevice()) return isSafari() ? 'ios-safari' : 'ios-other-browser';
+  if (isSafari() && /Macintosh|Mac OS X/i.test(window.navigator.userAgent)) return 'macos-safari';
   return 'unsupported';
 };

@@ -88,6 +88,9 @@ export const PwaInstallProvider: React.FC<{
   useEffect(() => {
     const updateAvailability = () => setAvailability(getInstallAvailability());
     const unsubscribe = subscribeToInstallAvailability(updateAvailability);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY) setPromotionState(readPromotionState());
+    };
     const onInstalled = () => {
       setAvailability('installed');
       setHiddenForSession(true);
@@ -95,12 +98,14 @@ export const PwaInstallProvider: React.FC<{
     const pwa = document.querySelector('pwa-install') as PwaInstallElement | null;
 
     window.addEventListener('appinstalled', onInstalled);
+    window.addEventListener('storage', onStorage);
     pwa?.addEventListener('pwa-install-success-event', onInstalled);
     updateAvailability();
 
     return () => {
       unsubscribe();
       window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener('storage', onStorage);
       pwa?.removeEventListener('pwa-install-success-event', onInstalled);
     };
   }, []);
@@ -120,6 +125,11 @@ export const PwaInstallProvider: React.FC<{
     let visibleActiveTime = 0;
     let lastTick = performance.now();
 
+    const resetTick = () => {
+      lastTick = performance.now();
+    };
+    document.addEventListener('visibilitychange', resetTick);
+
     const timer = window.setInterval(() => {
       const now = performance.now();
       if (document.visibilityState === 'visible') visibleActiveTime += now - lastTick;
@@ -130,12 +140,15 @@ export const PwaInstallProvider: React.FC<{
       }
     }, 1_000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', resetTick);
+    };
   }, [automaticPromotion, hasEnoughActiveTime]);
 
   const updatePromotionState = useCallback((update: (current: PromotionState) => PromotionState) => {
     setPromotionState(current => {
-      const next = update(current);
+      const next = update(readPromotionState());
       writePromotionState(next);
       return next;
     });
@@ -155,7 +168,7 @@ export const PwaInstallProvider: React.FC<{
   }, [updatePromotionState]);
 
   const requestInstall = useCallback(async (source: 'promotion' | 'settings' = 'settings'): Promise<InstallResult> => {
-    if (availability === 'ios-safari') {
+    if (availability === 'ios-safari' || availability === 'macos-safari') {
       const pwa = document.querySelector('pwa-install') as PwaInstallElement | null;
       if (!pwa) return 'unavailable';
       pwa.showDialog(true);
@@ -185,7 +198,9 @@ export const PwaInstallProvider: React.FC<{
     }
   }, [availability, dismissPromotion, updatePromotionState]);
 
-  const canInstall = availability === 'native' || availability === 'ios-safari';
+  const canInstall = availability === 'native'
+    || availability === 'ios-safari'
+    || availability === 'macos-safari';
   const shouldPromote = automaticPromotion
     && canInstall
     && promotionState.sessionCount >= 2
