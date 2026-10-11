@@ -1,6 +1,7 @@
 export type InstallAvailability =
   | 'native'
   | 'ios-safari'
+  | 'ios-browser'
   | 'macos-safari'
   | 'ios-other-browser'
   | 'unsupported'
@@ -52,6 +53,23 @@ const isSafari = () => {
   return /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(userAgent);
 };
 
+const supportsThirdPartyIosInstall = () => {
+  const version = /OS (\d+)[_.](\d+)/i.exec(window.navigator.userAgent);
+  if (version) {
+    const major = Number(version[1]);
+    const minor = Number(version[2]);
+    return major > 16 || (major === 16 && minor >= 4);
+  }
+
+  // iPadOS can request a desktop user agent that omits its OS version.
+  // Push API support arrived with the same iPadOS 16.4 release that enabled
+  // Add to Home Screen for third-party browsers, so it is a useful capability
+  // signal when the version is unavailable.
+  return window.navigator.platform === 'MacIntel'
+    && window.navigator.maxTouchPoints > 1
+    && 'PushManager' in window;
+};
+
 const isMacSafariInstallable = () => {
   if (!isSafari() || !/Macintosh/i.test(window.navigator.userAgent) || window.navigator.maxTouchPoints) return false;
   const safariVersion = /Version\/(\d{2})\./i.exec(window.navigator.userAgent);
@@ -65,7 +83,10 @@ const isMacSafariInstallable = () => {
 export const getInstallAvailability = (): InstallAvailability => {
   if (isStandaloneMode()) return 'installed';
   if (deferredPrompt) return 'native';
-  if (isIosDevice()) return isSafari() ? 'ios-safari' : 'ios-other-browser';
+  if (isIosDevice()) {
+    if (isSafari()) return 'ios-safari';
+    return supportsThirdPartyIosInstall() ? 'ios-browser' : 'ios-other-browser';
+  }
   if (isMacSafariInstallable()) return 'macos-safari';
   return 'unsupported';
 };

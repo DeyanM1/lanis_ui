@@ -1451,7 +1451,9 @@ const Settings: React.FC = () => {
                   >
                     {isInstalling
                       ? 'Wird geöffnet…'
-                      : installAvailability === 'ios-safari' || installAvailability === 'macos-safari'
+                      : installAvailability === 'ios-safari'
+                        || installAvailability === 'ios-browser'
+                        || installAvailability === 'macos-safari'
                         ? 'Anleitung öffnen'
                         : 'Installieren'}
                   </button>
