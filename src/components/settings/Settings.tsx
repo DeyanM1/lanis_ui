@@ -37,7 +37,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import SEO from '../seo/SEO';
-import { getDeferredPrompt } from '../pwa/InstallPrompt';
+import { usePwaInstall } from '../../contexts/PwaInstallContext';
 import TimetableSettings from './TimetableSettings';
 import VertretungsplanSettings from './VertretungsplanSettings';
 import HomeworkSettings from './HomeworkSettings';
@@ -51,10 +51,6 @@ import {
   isDivider,
   getSidebarLabel,
 } from '../../utils/sidebarNavigation';
-
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 const themeColors: { key: ThemeColor; label: string; hex: string; checkClass?: string }[] = [
   { key: 'emerald', label: 'Emerald', hex: '#10b981' },
@@ -558,19 +554,21 @@ const Settings: React.FC = () => {
   const { token, user } = useAuth();
   const location = useLocation();
   const basePath = useBasePath();
+  const isDemo = basePath === '/demo';
+  const { availability: installAvailability, canInstall, isInstalling, requestInstall } = usePwaInstall();
   const settingsRoot = `${basePath}/settings`;
   const [hasNativeSubstitutionPlan, setHasNativeSubstitutionPlan] = useState(() => {
     const availability = getModuleAvailability(readModulesCache(user));
     return availability.hasNativeSubstitutionPlan || availability.hasDsbModule;
   });
   const visibleSettingsSections = settingsSections.filter(item => (
-    item.id !== 'vertretungsplan' || hasNativeSubstitutionPlan
+    (item.id !== 'vertretungsplan' || hasNativeSubstitutionPlan)
+    && (item.id !== 'app' || !isDemo)
   ));
   const requestedSection = location.pathname.slice(settingsRoot.length).split('/').filter(Boolean)[0] as SettingsSection | undefined;
   const section: SettingsSection = requestedSection && visibleSettingsSections.some(item => item.id === requestedSection)
     ? requestedSection
     : 'home';
-  const [installStatus, setInstallStatus] = useState<'idle' | 'installed' | 'unsupported'>('unsupported');
   const [ghostClicks, setGhostClicks] = useState(0);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(defaultNotificationPreferences);
   const [notificationConfigured, setNotificationConfigured] = useState(false);
@@ -631,48 +629,6 @@ const Settings: React.FC = () => {
 
     return () => controller.abort();
   }, [token, user?.school_id, user?.username]);
-
-  useEffect(() => {
-    const prompt = getDeferredPrompt();
-
-    if (prompt) {
-      setInstallStatus('idle');
-      const el = document.querySelector('pwa-install') as PwaInstallElement | null;
-      const onInstalled = () => setInstallStatus('installed');
-      el?.addEventListener('pwa-install-success-event', onInstalled);
-      return () => {
-        el?.removeEventListener('pwa-install-success-event', onInstalled);
-      };
-    }
-
-    if (isStandalone()) {
-      setInstallStatus('installed');
-      return;
-    }
-
-    const el = document.querySelector('pwa-install') as PwaInstallElement | null;
-
-    const ua = window.navigator.userAgent;
-    const isIos = /iPad|iPhone|iPod/.test(ua);
-    const isAndroid = /android/i.test(ua);
-    if (isIos || isAndroid) {
-      setInstallStatus('idle');
-    } else {
-      const timer = setTimeout(() => {
-        const el2 = document.querySelector('pwa-install') as PwaInstallElement | null;
-        if (el2?.isInstallAvailable || el2?.isAppleMobilePlatform || el2?.isAndroid) {
-          setInstallStatus('idle');
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-
-    const onInstalled = () => setInstallStatus('installed');
-    el?.addEventListener('pwa-install-success-event', onInstalled);
-    return () => {
-      el?.removeEventListener('pwa-install-success-event', onInstalled);
-    };
-  }, []);
 
   useEffect(() => {
     setNotificationConfigured(false);
@@ -1008,8 +964,7 @@ const Settings: React.FC = () => {
   };
 
   const handleOpenInstall = () => {
-    const el = document.querySelector('pwa-install') as PwaInstallElement | null;
-    el?.showDialog(true);
+    void requestInstall('settings');
   };
 
   const changeThemeMode = (mode: 'system' | 'light' | 'dark' | 'oled') => {
@@ -1052,7 +1007,7 @@ const Settings: React.FC = () => {
       {section === 'homework' && <HomeworkSettings />}
       {section === 'vertretungsplan' && <VertretungsplanSettings />}
       {section === 'whatsapp' && <WhatsAppSettings />}
-      {section === 'sidebar' && <SidebarSettings isDemo={basePath === '/demo'} />}
+      {section === 'sidebar' && <SidebarSettings isDemo={isDemo} />}
 
       <div className="space-y-6">
         {section === 'appearance' && (
@@ -1465,7 +1420,7 @@ const Settings: React.FC = () => {
         )}
 
         {/* App installieren */}
-        {section === 'app' && installStatus !== 'unsupported' && (
+        {section === 'app' && (canInstall || installAvailability === 'installed') && (
           <div className="card">
           <div className="flex items-start gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
@@ -1473,12 +1428,12 @@ const Settings: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">
-                {installStatus === 'installed'
+                {installAvailability === 'installed'
                   ? 'App installiert'
                   : 'Lanis als App installieren'}
               </h3>
 
-              {installStatus === 'installed' ? (
+              {installAvailability === 'installed' ? (
                 <p className="text-sm text-surface-500 mt-1">
                   Lanis ist als App installiert und kann direkt vom Homescreen geöffnet werden.
                 </p>
@@ -1491,9 +1446,16 @@ const Settings: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleOpenInstall}
+                    disabled={isInstalling}
                     className="btn btn-primary mt-4"
                   >
-                    Installieren
+                    {isInstalling
+                      ? 'Wird geöffnet…'
+                      : installAvailability === 'ios-safari'
+                        || installAvailability === 'ios-browser'
+                        || installAvailability === 'macos-safari'
+                        ? 'Anleitung öffnen'
+                        : 'Installieren'}
                   </button>
                 </>
               )}
@@ -1502,15 +1464,21 @@ const Settings: React.FC = () => {
           </div>
         )}
 
-        {section === 'app' && installStatus === 'unsupported' && (
+        {section === 'app' && !canInstall && installAvailability !== 'installed' && (
           <div className="card">
             <div className="flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-100 text-surface-500 dark:bg-surface-800 dark:text-surface-300">
                 <DevicePhoneMobileIcon className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">Installation nicht verfügbar</h3>
-                <p className="mt-1 text-sm text-surface-500">Dieser Browser bietet aktuell keine direkte App-Installation an. Du kannst Lanis trotzdem wie gewohnt nutzen.</p>
+                <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">
+                  {installAvailability === 'ios-other-browser' ? 'Für die Installation Safari verwenden' : 'Installation nicht verfügbar'}
+                </h3>
+                <p className="mt-1 text-sm text-surface-500">
+                  {installAvailability === 'ios-other-browser'
+                    ? 'Öffne Lanis in Safari und füge es dort über das Teilen-Menü zum Home-Bildschirm hinzu.'
+                    : 'Dieser Browser bietet aktuell keine App-Installation an. Du kannst Lanis trotzdem wie gewohnt nutzen.'}
+                </p>
               </div>
             </div>
           </div>
@@ -1524,7 +1492,7 @@ const Settings: React.FC = () => {
                 const el = document.querySelector('pwa-install') as PwaInstallElement | null;
                 const rows: [string, unknown][] = el
                   ? [
-                      ['_deferredPrompt', getDeferredPrompt() ? 'captured' : 'null'],
+                      ['_deferredPrompt', installAvailability === 'native' ? 'captured' : 'null'],
                       ['isInstallAvailable', el.isInstallAvailable],
                       ['isUnderStandaloneMode', el.isUnderStandaloneMode],
                       ['isAppleMobilePlatform', el.isAppleMobilePlatform],
