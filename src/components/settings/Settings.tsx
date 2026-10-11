@@ -554,6 +554,7 @@ const Settings: React.FC = () => {
   const { token, user } = useAuth();
   const location = useLocation();
   const basePath = useBasePath();
+  const isDemo = basePath === '/demo';
   const { availability: installAvailability, canInstall, isInstalling, requestInstall } = usePwaInstall();
   const settingsRoot = `${basePath}/settings`;
   const [hasNativeSubstitutionPlan, setHasNativeSubstitutionPlan] = useState(() => {
@@ -561,7 +562,8 @@ const Settings: React.FC = () => {
     return availability.hasNativeSubstitutionPlan || availability.hasDsbModule;
   });
   const visibleSettingsSections = settingsSections.filter(item => (
-    item.id !== 'vertretungsplan' || hasNativeSubstitutionPlan
+    (item.id !== 'vertretungsplan' || hasNativeSubstitutionPlan)
+    && (item.id !== 'app' || !isDemo)
   ));
   const requestedSection = location.pathname.slice(settingsRoot.length).split('/').filter(Boolean)[0] as SettingsSection | undefined;
   const section: SettingsSection = requestedSection && visibleSettingsSections.some(item => item.id === requestedSection)
@@ -1005,7 +1007,7 @@ const Settings: React.FC = () => {
       {section === 'homework' && <HomeworkSettings />}
       {section === 'vertretungsplan' && <VertretungsplanSettings />}
       {section === 'whatsapp' && <WhatsAppSettings />}
-      {section === 'sidebar' && <SidebarSettings isDemo={basePath === '/demo'} />}
+      {section === 'sidebar' && <SidebarSettings isDemo={isDemo} />}
 
       <div className="space-y-6">
         {section === 'appearance' && (
