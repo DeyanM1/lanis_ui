@@ -237,14 +237,16 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         hasDsbModule={hasDsbModule}
       />
       {isFeedbackOpen && <FeedbackDialog token={token || ''} onClose={closeFeedbackDialog} openerRef={feedbackOpenerRef} />}
-      <pwa-install
-        ref={pwaRef}
-        manifest-url={manifestUrl}
-        name="Lanis"
-        icon={appIconUrl}
-        description="Moderne Benutzeroberfläche für das Schulportal Hessen"
-        install-description="Direkt vom Homescreen öffnen — wie eine echte App."
-      ></pwa-install>
+      {!isDemo && (
+        <pwa-install
+          ref={pwaRef}
+          manifest-url={manifestUrl}
+          name="Lanis"
+          icon={appIconUrl}
+          description="Moderne Benutzeroberfläche für das Schulportal Hessen"
+          install-description="Direkt vom Homescreen öffnen — wie eine echte App."
+        ></pwa-install>
+      )}
       </div>
     </PwaInstallProvider>
   );
