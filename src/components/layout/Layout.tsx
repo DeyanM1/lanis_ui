@@ -241,6 +241,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         <pwa-install
           ref={pwaRef}
           manifest-url={manifestUrl}
+          manual-apple="true"
+          manual-chrome="true"
+          use-local-storage="true"
           name="Lanis"
           icon={appIconUrl}
           description="Moderne Benutzeroberfläche für das Schulportal Hessen"
