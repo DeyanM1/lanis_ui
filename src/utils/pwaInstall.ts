@@ -52,10 +52,20 @@ const isSafari = () => {
   return /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(userAgent);
 };
 
+const isMacSafariInstallable = () => {
+  if (!isSafari() || !/Macintosh/i.test(window.navigator.userAgent) || window.navigator.maxTouchPoints) return false;
+  const safariVersion = /Version\/(\d{2})\./i.exec(window.navigator.userAgent);
+  if (!safariVersion || Number(safariVersion[1]) < 17) return false;
+  const audioCheck = document.createElement('audio').canPlayType('audio/wav; codecs="1"');
+  const webglCheck = typeof OffscreenCanvas !== 'undefined'
+    && Boolean(new OffscreenCanvas(1, 1).getContext('webgl'));
+  return Boolean(audioCheck && webglCheck);
+};
+
 export const getInstallAvailability = (): InstallAvailability => {
   if (isStandaloneMode()) return 'installed';
   if (deferredPrompt) return 'native';
   if (isIosDevice()) return isSafari() ? 'ios-safari' : 'ios-other-browser';
-  if (isSafari() && /Macintosh|Mac OS X/i.test(window.navigator.userAgent)) return 'macos-safari';
+  if (isMacSafariInstallable()) return 'macos-safari';
   return 'unsupported';
 };
