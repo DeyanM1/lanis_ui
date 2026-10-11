@@ -50,7 +50,8 @@ const isIosDevice = () => {
 
 const isSafari = () => {
   const userAgent = window.navigator.userAgent;
-  return /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(userAgent);
+  return /Version\/[\d.]+.*Safari/i.test(userAgent)
+    && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(userAgent);
 };
 
 const supportsThirdPartyIosInstall = () => {
