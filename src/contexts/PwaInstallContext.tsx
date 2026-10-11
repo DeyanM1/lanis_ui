@@ -147,11 +147,9 @@ export const PwaInstallProvider: React.FC<{
   }, [automaticPromotion, hasEnoughActiveTime]);
 
   const updatePromotionState = useCallback((update: (current: PromotionState) => PromotionState) => {
-    setPromotionState(current => {
-      const next = update(readPromotionState());
-      writePromotionState(next);
-      return next;
-    });
+    const next = update(readPromotionState());
+    writePromotionState(next);
+    setPromotionState(next);
   }, []);
 
   const dismissPromotion = useCallback(() => {
