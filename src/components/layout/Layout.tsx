@@ -28,8 +28,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { Link, useLocation } from 'react-router-dom';
 import GlobalSearch from '../search/GlobalSearch';
-import InstallPrompt from '../pwa/InstallPrompt';
 import OutageNotice from '../status/OutageNotice';
+import { PwaInstallProvider } from '../../contexts/PwaInstallContext';
 import { getModuleAvailability, readModulesCache, writeModulesCache } from '../../utils/moduleCache';
 import type { CachedModule } from '../../utils/moduleCache';
 import { getThemeIconUrl, getThemeManifestUrl, THEME_COLOR_HEX } from '../../utils/themeAssets';
@@ -178,7 +178,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const isDemo = basePath === '/demo';
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-surface-50 dark:bg-surface-950">
+    <PwaInstallProvider automaticPromotion={!isDemo}>
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-surface-50 dark:bg-surface-950">
       {isDemo && <DemoBar />}
       {isSidebarOpen && (
         <div className={'fixed inset-x-0 bottom-0 flex z-40 md:hidden ' + (isDemo ? 'top-10' : 'inset-0')}>
@@ -244,8 +245,8 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         description="Moderne Benutzeroberfläche für das Schulportal Hessen"
         install-description="Direkt vom Homescreen öffnen — wie eine echte App."
       ></pwa-install>
-      <InstallPrompt />
-    </div>
+      </div>
+    </PwaInstallProvider>
   );
 
   function SidebarContent({
