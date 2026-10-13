@@ -112,7 +112,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       void initializeAuth();
     };
-    const recoverOnline = () => { if (hasAccountDataDeletionMarker()) void initializeAuth(); };
+    const recoverOnline = () => {
+      if (!hasAccountDataDeletionMarker()) return;
+      setIsLoading(true);
+      void initializeAuth();
+    };
     window.addEventListener('storage', recoverOnStorage);
     window.addEventListener('online', recoverOnline);
     void initializeAuth();
