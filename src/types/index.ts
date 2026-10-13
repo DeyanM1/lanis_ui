@@ -95,7 +95,7 @@ export interface User {
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'oled';
-export type ThemeColor = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'amber' | 'cyan';
+export type ThemeColor = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'amber' | 'cyan' | 'coral' | 'blush' | 'moss';
 export type DashboardViewMode = 'grid' | 'list';
 export type TimetableViewMode = 'rolling' | 'week';
 export type TimetableLayoutMode = 'cards' | 'compact';
@@ -111,6 +111,7 @@ export interface UserPreferences {
   sidebar: {
     order: string[];
     hidden_items: string[];
+    show_feedback_button: boolean;
   };
   dashboard: {
     pinned_modules: string[];

@@ -7,10 +7,6 @@ import {
   clearBackendScopedStorage,
 } from '../../utils/backendConfig';
 import {
-  ACCOUNT_DATA_DELETION_CONFIRMED_KEY,
-  ACCOUNT_DATA_DELETION_EPOCH_KEY,
-  ACCOUNT_DATA_GENERATION_KEY,
-  ACCOUNT_DATA_LIFECYCLE_LOCK_KEY,
   beginAccountDataDeletion,
   captureAccountDataGeneration,
   confirmAccountDataDeletion,
@@ -19,6 +15,7 @@ import {
   isAccountDataDeletionInProgress,
   ownsAccountDataDeletion,
   recordAccountDataDeletion,
+  purgeDeletedAccountBrowserData,
   withAccountDataLifecycleLock,
 } from '../../utils/accountDataWrites';
 import { useBasePath } from '../../contexts/BasePathContext';
@@ -56,7 +53,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import SEO from '../seo/SEO';
-import { getDeferredPrompt } from '../pwa/InstallPrompt';
+import { usePwaInstall } from '../../contexts/PwaInstallContext';
 import TimetableSettings from './TimetableSettings';
 import VertretungsplanSettings from './VertretungsplanSettings';
 import HomeworkSettings from './HomeworkSettings';
@@ -71,17 +68,16 @@ import {
   getSidebarLabel,
 } from '../../utils/sidebarNavigation';
 
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-const themeColors: { key: ThemeColor; label: string; hex: string }[] = [
+const themeColors: { key: ThemeColor; label: string; hex: string; checkClass?: string }[] = [
   { key: 'emerald', label: 'Emerald', hex: '#10b981' },
   { key: 'sapphire', label: 'Saphir', hex: '#3b82f6' },
   { key: 'amethyst', label: 'Amethyst', hex: '#a855f7' },
   { key: 'ruby', label: 'Rubin', hex: '#f43f5e' },
   { key: 'amber', label: 'Bernstein', hex: '#f59e0b' },
   { key: 'cyan', label: 'Cyan', hex: '#06b6d4' },
+  { key: 'coral', label: 'Koralle', hex: '#f88379' },
+  { key: 'blush', label: 'Blush', hex: '#fee3ea', checkClass: 'text-surface-800' },
+  { key: 'moss', label: 'Oliven grün', hex: '#4b573f' },
 ];
 
 const defaultNotificationPreferences: NotificationPreferences = {
@@ -208,7 +204,7 @@ const sectionMeta: Record<SettingsSection, { title: string; subtitle: string }> 
   notifications: { title: 'Benachrichtigungen', subtitle: 'Nachrichten und neue Vertretungsplan-Einträge per Web-Push mitbekommen.' },
   whatsapp: { title: 'WhatsApp-Assistent', subtitle: 'Dein LANIS-Konto sicher mit dem WhatsApp-Chat verbinden.' },
   app: { title: 'App & Installation', subtitle: 'Lanis auf deinem Gerät griffbereit halten.' },
-  sidebar: { title: 'Seitenleiste', subtitle: 'Ordne die Einträge in der Seitenleiste nach deinen Wünschen.' },
+  sidebar: { title: 'Seitenleiste', subtitle: 'Passe die Navigation an deine Gewohnheiten an.' },
 };
 
 const AccountSettings: React.FC = () => {
@@ -252,15 +248,17 @@ const AccountSettings: React.FC = () => {
       setDeleting(false);
       return;
     }
-    const deletionGeneration = beginAccountDataDeletion();
+    const deletionGeneration = beginAccountDataDeletion(freshToken, localStorage.getItem('auth_refresh_token') || '');
     try {
       const result = await authAPI.deleteAccount(freshToken);
       if (!result.success) {
         throw new Error('Account deletion was not confirmed by the server.');
       }
     } catch {
-      finishAccountDataDeletion(deletionGeneration);
-      setError('Das Konto konnte nicht vollständig gelöscht werden. Bitte versuche es erneut.');
+      // A timeout does not establish whether DELETE reached the server.
+      // Startup recovery will fence it before restoring a surviving session.
+      window.location.replace('/login');
+      setError('Der Löschvorgang wird beim nächsten Start geprüft.');
       setDeleting(false);
       return;
     }
@@ -278,50 +276,8 @@ const AccountSettings: React.FC = () => {
       return;
     }
 
-    try {
-      const customBackendUrl = localStorage.getItem(CUSTOM_BACKEND_STORAGE_KEY);
-      clearBackendScopedStorage();
-      for (let index = localStorage.length - 1; index >= 0; index -= 1) {
-        const key = localStorage.key(index);
-        if (
-          key
-          && key !== CUSTOM_BACKEND_STORAGE_KEY
-          && key !== ACCOUNT_DATA_GENERATION_KEY
-          && key !== ACCOUNT_DATA_DELETION_EPOCH_KEY
-          && key !== ACCOUNT_DATA_DELETION_CONFIRMED_KEY
-          && key !== ACCOUNT_DATA_LIFECYCLE_LOCK_KEY
-        ) {
-          localStorage.removeItem(key);
-        }
-      }
-      if (!deletionConfirmedRecorded) recordAccountDataDeletion();
-      if (customBackendUrl) {
-        localStorage.setItem(CUSTOM_BACKEND_STORAGE_KEY, customBackendUrl);
-      }
-    } catch {
-      // The deleted server account must still be logged out if storage is unavailable.
-    }
-
-    const cleanupTasks: Promise<unknown>[] = [];
-    if ('serviceWorker' in navigator) {
-      cleanupTasks.push(Promise.resolve().then(async () => {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (!registration) return;
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) await subscription.unsubscribe();
-      }));
-    }
-    if ('caches' in window) {
-      cleanupTasks.push(Promise.resolve().then(async () => {
-        const names = await caches.keys();
-        await Promise.all(
-          names
-            .filter(name => !name.startsWith('lanis-ui-shell-'))
-            .map(name => caches.delete(name)),
-        );
-      }));
-    }
-    await Promise.allSettled(cleanupTasks);
+    const cleanupComplete = await purgeDeletedAccountBrowserData();
+    if (!deletionConfirmedRecorded) recordAccountDataDeletion();
     try {
       await logout(() => (
         ownsAccountDataDeletion(deletionGeneration)
@@ -333,7 +289,7 @@ const AccountSettings: React.FC = () => {
     } catch {
       // The account is already deleted; always continue to the login screen.
     }
-    finishAccountDataDeletion(deletionGeneration);
+    if (cleanupComplete) finishAccountDataDeletion(deletionGeneration);
     navigate('/login', { replace: true });
     setDeleting(false);
   };
@@ -366,17 +322,26 @@ const AccountSettings: React.FC = () => {
 
 type SidebarSaveState = 'idle' | 'saved' | 'error';
 
-const SidebarSettings: React.FC = () => {
+const SidebarSettings: React.FC<{ isDemo: boolean }> = ({ isDemo }) => {
   const { preferences, updatePreferences, isSaving } = usePreferences();
   const [order, setOrder] = useState(() => normalizeSidebarOrder(preferences.sidebar.order));
   const [hiddenItems, setHiddenItems] = useState<string[]>(() => preferences.sidebar.hidden_items);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SidebarSaveState>('idle');
+  const [hasUnresolvedSidebarSaveFailure, setHasUnresolvedSidebarSaveFailure] = useState(false);
+  const [feedbackSaveState, setFeedbackSaveState] = useState<SidebarSaveState>('idle');
+  const [isRetryingFeedbackSave, setIsRetryingFeedbackSave] = useState(false);
+  const preserveNavigationDraftsRef = React.useRef(false);
+  const isRetryingFeedbackSaveRef = React.useRef(false);
 
   useEffect(() => {
+    if (preserveNavigationDraftsRef.current) {
+      if (!isRetryingFeedbackSaveRef.current) preserveNavigationDraftsRef.current = false;
+      return;
+    }
     setOrder(normalizeSidebarOrder(preferences.sidebar.order));
     setHiddenItems(preferences.sidebar.hidden_items);
-  }, [preferences.sidebar.order]);
+  }, [preferences.sidebar.order, preferences.sidebar.hidden_items, isRetryingFeedbackSave]);
 
   const visibleOrder = order.filter(id => !hiddenItems.includes(id));
   const hiddenOrder = order.filter(id => hiddenItems.includes(id));
@@ -413,11 +378,36 @@ const SidebarSettings: React.FC = () => {
 
   const hasChanges = JSON.stringify(order) !== JSON.stringify(normalizeSidebarOrder(preferences.sidebar.order));
   const hasVisibilityChanges = JSON.stringify(hiddenItems) !== JSON.stringify(preferences.sidebar.hidden_items);
-
+  const isSidebarSaveInProgress = isSaving || isRetryingFeedbackSave;
   const applyOrder = async () => {
     setSaveState('idle');
     const saved = await updatePreferences({ sidebar: { order, hidden_items: hiddenItems } });
     setSaveState(saved ? 'saved' : 'error');
+    setHasUnresolvedSidebarSaveFailure(!saved);
+  };
+
+  const saveFeedbackButton = async (showFeedbackButton: boolean, preserveNavigationDrafts = false) => {
+    preserveNavigationDraftsRef.current = preserveNavigationDrafts;
+    if (preserveNavigationDrafts) {
+      isRetryingFeedbackSaveRef.current = true;
+      setIsRetryingFeedbackSave(true);
+    }
+    setFeedbackSaveState('idle');
+    try {
+      const saved = await updatePreferences({
+        sidebar: { show_feedback_button: showFeedbackButton },
+      });
+      setFeedbackSaveState(saved ? 'saved' : 'error');
+    } finally {
+      if (preserveNavigationDrafts) {
+        isRetryingFeedbackSaveRef.current = false;
+        setIsRetryingFeedbackSave(false);
+      }
+    }
+  };
+
+  const toggleFeedbackButton = async () => {
+    await saveFeedbackButton(!preferences.sidebar.show_feedback_button);
   };
 
   const cancelChanges = () => {
@@ -455,6 +445,47 @@ const SidebarSettings: React.FC = () => {
   };
 
   return (
+    <div className="space-y-4">
+    {!isDemo && <section className="card">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">Feedback-Schaltfläche</h3>
+          <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Zeigt den Feedback-Eintrag unten in der Seitenleiste.</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={preferences.sidebar.show_feedback_button}
+          aria-label="Feedback-Schaltfläche anzeigen"
+          onClick={() => void toggleFeedbackButton()}
+          disabled={isSidebarSaveInProgress || hasChanges || hasVisibilityChanges}
+          title={hasChanges || hasVisibilityChanges
+            ? 'Speichere oder verwirf zuerst deine Navigationsänderungen.'
+            : hasUnresolvedSidebarSaveFailure
+              ? 'Feedback wird unabhängig gespeichert; Navigationsänderungen bleiben noch offen.'
+              : undefined}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-surface-900 ${preferences.sidebar.show_feedback_button ? 'bg-primary-600' : 'bg-surface-300 dark:bg-surface-700'}`}
+        >
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${preferences.sidebar.show_feedback_button ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      <div className="mt-3 min-h-5 text-sm" aria-live="polite">
+        {feedbackSaveState === 'saved' && <p className="text-emerald-700 dark:text-emerald-400">Gespeichert und mit deinem Konto synchronisiert.</p>}
+        {feedbackSaveState === 'error' && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
+            <p>Lokal gespeichert, aber noch nicht mit deinem Konto synchronisiert.</p>
+            <button
+              type="button"
+              onClick={() => void saveFeedbackButton(preferences.sidebar.show_feedback_button, hasChanges || hasVisibilityChanges)}
+              disabled={isSidebarSaveInProgress}
+              className="font-medium underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Erneut versuchen
+            </button>
+          </div>
+        )}
+      </div>
+    </section>}
     <section className="card !p-0 overflow-hidden">
       <div className="border-b border-surface-100 px-5 py-5 dark:border-surface-800 sm:px-6">
         <div className="flex items-start justify-between gap-4">
@@ -474,9 +505,9 @@ const SidebarSettings: React.FC = () => {
         {displayOrder.map((id, index) => (
           <li
             key={id}
-            onDragOver={(event) => event.preventDefault()}
+            onDragOver={(event) => { if (!isSidebarSaveInProgress) event.preventDefault(); }}
             onDragEnter={() => {
-              if (draggedId && hiddenItems.includes(draggedId) === hiddenItems.includes(id)) moveItemTo(draggedId, id);
+              if (!isSidebarSaveInProgress && draggedId && hiddenItems.includes(draggedId) === hiddenItems.includes(id)) moveItemTo(draggedId, id);
             }}
             onDrop={() => setDraggedId(null)}
             className={`group flex min-h-16 items-center gap-3 rounded-2xl border bg-white px-3 py-2 shadow-sm transition-[transform,background-color,border-color,box-shadow] duration-150 dark:bg-surface-900 sm:px-4 ${
@@ -491,7 +522,7 @@ const SidebarSettings: React.FC = () => {
               {String(index + 1).padStart(2, '0')}
             </span>
             <span
-              draggable
+              draggable={!isSidebarSaveInProgress}
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move';
                 event.dataTransfer.setData('text/plain', id);
@@ -512,8 +543,9 @@ const SidebarSettings: React.FC = () => {
               <button
                 type="button"
                 onClick={() => deleteDivider(id)}
+                disabled={isSidebarSaveInProgress}
                 aria-label={`Trennlinie löschen`}
-                className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/40 dark:hover:bg-surface-800 dark:hover:text-red-400"
+                className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-surface-800 dark:hover:text-red-400"
               >
                 <TrashIcon className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Löschen</span>
@@ -522,8 +554,9 @@ const SidebarSettings: React.FC = () => {
               <button
                 type="button"
                 onClick={() => toggleVisibility(id)}
+                disabled={isSidebarSaveInProgress}
                 aria-label={hiddenItems.includes(id) ? `${getSidebarLabel(id)} einblenden` : `${getSidebarLabel(id)} ausblenden`}
-                className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/40 dark:hover:bg-surface-800 dark:hover:text-primary-400"
+                className="flex h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-surface-500 transition-colors hover:bg-surface-100 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-surface-800 dark:hover:text-primary-400"
               >
                 {hiddenItems.includes(id) ? <EyeIcon className="h-4 w-4" aria-hidden="true" /> : <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />}
                 <span className="hidden sm:inline">{hiddenItems.includes(id) ? 'Zeigen' : 'Ausblenden'}</span>
@@ -532,7 +565,7 @@ const SidebarSettings: React.FC = () => {
             <button
               type="button"
               onClick={() => moveItem(id, -1)}
-              disabled={index === 0 || hiddenItems.includes(id) !== hiddenItems.includes(displayOrder[index - 1])}
+              disabled={isSidebarSaveInProgress || index === 0 || hiddenItems.includes(id) !== hiddenItems.includes(displayOrder[index - 1])}
               aria-label={`${getSidebarLabel(id)} nach oben verschieben`}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-25 dark:hover:bg-surface-800 dark:hover:text-surface-100"
             >
@@ -541,7 +574,7 @@ const SidebarSettings: React.FC = () => {
             <button
               type="button"
               onClick={() => moveItem(id, 1)}
-              disabled={index === displayOrder.length - 1 || hiddenItems.includes(id) !== hiddenItems.includes(displayOrder[index + 1])}
+              disabled={isSidebarSaveInProgress || index === displayOrder.length - 1 || hiddenItems.includes(id) !== hiddenItems.includes(displayOrder[index + 1])}
               aria-label={`${getSidebarLabel(id)} nach unten verschieben`}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:cursor-not-allowed disabled:opacity-25 dark:hover:bg-surface-800 dark:hover:text-surface-100"
             >
@@ -556,27 +589,27 @@ const SidebarSettings: React.FC = () => {
           <button
             type="button"
             onClick={addDivider}
-            disabled={isSaving}
+            disabled={isSidebarSaveInProgress}
             className="btn btn-ghost justify-center sm:justify-start disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Bars3Icon className="mr-2 h-4 w-4 rotate-90" aria-hidden="true" />
             Trennlinie hinzufügen
           </button>
-          <button type="button" onClick={resetOrder} disabled={isSaving} className="btn btn-ghost justify-center sm:justify-start">
+          <button type="button" onClick={resetOrder} disabled={isSidebarSaveInProgress} className="btn btn-ghost justify-center sm:justify-start">
             <ArrowPathIcon className="mr-2 h-4 w-4" aria-hidden="true" />
             Standard wiederherstellen
           </button>
           <div className="flex gap-3 sm:ml-auto">
-            <button type="button" onClick={cancelChanges} disabled={!hasChanges || isSaving} className="btn btn-secondary flex-1 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none">
+            <button type="button" onClick={cancelChanges} disabled={(!hasChanges && !hasVisibilityChanges) || isSidebarSaveInProgress} className="btn btn-secondary flex-1 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none">
               Verwerfen
             </button>
             <button
               type="button"
               onClick={() => void applyOrder()}
-              disabled={(!hasChanges && !hasVisibilityChanges && saveState !== 'error') || isSaving}
+              disabled={(!hasChanges && !hasVisibilityChanges && !hasUnresolvedSidebarSaveFailure) || isSidebarSaveInProgress}
               className="btn btn-primary flex-1 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
             >
-              {isSaving ? 'Wird gespeichert…' : 'Reihenfolge speichern'}
+              {isSidebarSaveInProgress ? 'Wird gespeichert…' : 'Änderungen speichern'}
             </button>
           </div>
         </div>
@@ -587,7 +620,7 @@ const SidebarSettings: React.FC = () => {
               Gespeichert und mit deinem Konto synchronisiert.
             </p>
           )}
-          {saveState === 'error' && (
+          {hasUnresolvedSidebarSaveFailure && (
             <p className="text-amber-700 dark:text-amber-300">
               Lokal gespeichert, aber noch nicht mit deinem Konto synchronisiert. Versuche es erneut.
             </p>
@@ -595,6 +628,7 @@ const SidebarSettings: React.FC = () => {
         </div>
       </div>
     </section>
+    </div>
   );
 };
 
@@ -656,6 +690,8 @@ const Settings: React.FC = () => {
   const { token, user } = useAuth();
   const location = useLocation();
   const basePath = useBasePath();
+  const isDemo = basePath === '/demo';
+  const { availability: installAvailability, canInstall, isInstalling, requestInstall } = usePwaInstall();
   const settingsRoot = `${basePath}/settings`;
   const [hasNativeSubstitutionPlan, setHasNativeSubstitutionPlan] = useState(() => {
     const availability = getModuleAvailability(readModulesCache(user));
@@ -664,12 +700,12 @@ const Settings: React.FC = () => {
   const visibleSettingsSections = settingsSections.filter(item => (
     (item.id !== 'vertretungsplan' || hasNativeSubstitutionPlan)
     && (item.id !== 'account' || basePath !== '/demo')
+    && (item.id !== 'app' || !isDemo)
   ));
   const requestedSection = location.pathname.slice(settingsRoot.length).split('/').filter(Boolean)[0] as SettingsSection | undefined;
   const section: SettingsSection = requestedSection && visibleSettingsSections.some(item => item.id === requestedSection)
     ? requestedSection
     : 'home';
-  const [installStatus, setInstallStatus] = useState<'idle' | 'installed' | 'unsupported'>('unsupported');
   const [ghostClicks, setGhostClicks] = useState(0);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(defaultNotificationPreferences);
   const [notificationConfigured, setNotificationConfigured] = useState(false);
@@ -731,48 +767,6 @@ const Settings: React.FC = () => {
 
     return () => controller.abort();
   }, [token, user?.school_id, user?.username]);
-
-  useEffect(() => {
-    const prompt = getDeferredPrompt();
-
-    if (prompt) {
-      setInstallStatus('idle');
-      const el = document.querySelector('pwa-install') as PwaInstallElement | null;
-      const onInstalled = () => setInstallStatus('installed');
-      el?.addEventListener('pwa-install-success-event', onInstalled);
-      return () => {
-        el?.removeEventListener('pwa-install-success-event', onInstalled);
-      };
-    }
-
-    if (isStandalone()) {
-      setInstallStatus('installed');
-      return;
-    }
-
-    const el = document.querySelector('pwa-install') as PwaInstallElement | null;
-
-    const ua = window.navigator.userAgent;
-    const isIos = /iPad|iPhone|iPod/.test(ua);
-    const isAndroid = /android/i.test(ua);
-    if (isIos || isAndroid) {
-      setInstallStatus('idle');
-    } else {
-      const timer = setTimeout(() => {
-        const el2 = document.querySelector('pwa-install') as PwaInstallElement | null;
-        if (el2?.isInstallAvailable || el2?.isAppleMobilePlatform || el2?.isAndroid) {
-          setInstallStatus('idle');
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-
-    const onInstalled = () => setInstallStatus('installed');
-    el?.addEventListener('pwa-install-success-event', onInstalled);
-    return () => {
-      el?.removeEventListener('pwa-install-success-event', onInstalled);
-    };
-  }, []);
 
   useEffect(() => {
     setNotificationConfigured(false);
@@ -1108,8 +1102,7 @@ const Settings: React.FC = () => {
   };
 
   const handleOpenInstall = () => {
-    const el = document.querySelector('pwa-install') as PwaInstallElement | null;
-    el?.showDialog(true);
+    void requestInstall('settings');
   };
 
   const changeThemeMode = (mode: 'system' | 'light' | 'dark' | 'oled') => {
@@ -1152,7 +1145,7 @@ const Settings: React.FC = () => {
       {section === 'homework' && <HomeworkSettings />}
       {section === 'vertretungsplan' && <VertretungsplanSettings />}
       {section === 'whatsapp' && <WhatsAppSettings />}
-      {section === 'sidebar' && <SidebarSettings />}
+      {section === 'sidebar' && <SidebarSettings isDemo={isDemo} />}
       {section === 'account' && <AccountSettings />}
 
       <div className="space-y-6">
@@ -1188,7 +1181,7 @@ const Settings: React.FC = () => {
         <div className="card">
           <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100 mb-1">Primärfarbe</h3>
           <p className="text-sm text-surface-500 mb-5">Wähle eine Farbe für das Design</p>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-7">
             {themeColors.map((c) => (
               <button
                 key={c.key}
@@ -1206,7 +1199,7 @@ const Settings: React.FC = () => {
                   style={{ backgroundColor: c.hex }}
                 >
                   {themeColor === c.key && (
-                    <CheckIcon className="w-4 h-4 text-white" />
+                    <CheckIcon className={`w-4 h-4 ${c.checkClass || 'text-white'}`} />
                   )}
                 </span>
                 <span className="text-xs font-medium text-surface-600 dark:text-surface-300">{c.label}</span>
@@ -1566,7 +1559,7 @@ const Settings: React.FC = () => {
         )}
 
         {/* App installieren */}
-        {section === 'app' && installStatus !== 'unsupported' && (
+        {section === 'app' && (canInstall || installAvailability === 'installed') && (
           <div className="card">
           <div className="flex items-start gap-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
@@ -1574,12 +1567,12 @@ const Settings: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">
-                {installStatus === 'installed'
+                {installAvailability === 'installed'
                   ? 'App installiert'
                   : 'Lanis als App installieren'}
               </h3>
 
-              {installStatus === 'installed' ? (
+              {installAvailability === 'installed' ? (
                 <p className="text-sm text-surface-500 mt-1">
                   Lanis ist als App installiert und kann direkt vom Homescreen geöffnet werden.
                 </p>
@@ -1592,9 +1585,16 @@ const Settings: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleOpenInstall}
+                    disabled={isInstalling}
                     className="btn btn-primary mt-4"
                   >
-                    Installieren
+                    {isInstalling
+                      ? 'Wird geöffnet…'
+                      : installAvailability === 'ios-safari'
+                        || installAvailability === 'ios-browser'
+                        || installAvailability === 'macos-safari'
+                        ? 'Anleitung öffnen'
+                        : 'Installieren'}
                   </button>
                 </>
               )}
@@ -1603,15 +1603,27 @@ const Settings: React.FC = () => {
           </div>
         )}
 
-        {section === 'app' && installStatus === 'unsupported' && (
+        {section === 'app' && !canInstall && installAvailability !== 'installed' && (
           <div className="card">
             <div className="flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-100 text-surface-500 dark:bg-surface-800 dark:text-surface-300">
                 <DevicePhoneMobileIcon className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">Installation nicht verfügbar</h3>
-                <p className="mt-1 text-sm text-surface-500">Dieser Browser bietet aktuell keine direkte App-Installation an. Du kannst Lanis trotzdem wie gewohnt nutzen.</p>
+                <h3 className="text-base font-semibold text-surface-900 dark:text-surface-100">
+                  {installAvailability === 'ios-other-browser'
+                    ? 'Für die Installation Safari verwenden'
+                    : installAvailability === 'macos-safari'
+                      ? 'Installation über Safari'
+                      : 'Installation nicht verfügbar'}
+                </h3>
+                <p className="mt-1 text-sm text-surface-500">
+                  {installAvailability === 'ios-other-browser'
+                    ? 'Öffne Lanis in Safari und füge es dort über das Teilen-Menü zum Home-Bildschirm hinzu.'
+                    : installAvailability === 'macos-safari'
+                      ? 'Unter macOS Sonoma oder neuer kannst du in Safari „Ablage“ → „Zum Dock hinzufügen“ wählen. Ältere macOS-Versionen unterstützen diese Installation nicht.'
+                    : 'Dieser Browser bietet aktuell keine App-Installation an. Du kannst Lanis trotzdem wie gewohnt nutzen.'}
+                </p>
               </div>
             </div>
           </div>
@@ -1625,7 +1637,7 @@ const Settings: React.FC = () => {
                 const el = document.querySelector('pwa-install') as PwaInstallElement | null;
                 const rows: [string, unknown][] = el
                   ? [
-                      ['_deferredPrompt', getDeferredPrompt() ? 'captured' : 'null'],
+                      ['_deferredPrompt', installAvailability === 'native' ? 'captured' : 'null'],
                       ['isInstallAvailable', el.isInstallAvailable],
                       ['isUnderStandaloneMode', el.isUnderStandaloneMode],
                       ['isAppleMobilePlatform', el.isAppleMobilePlatform],

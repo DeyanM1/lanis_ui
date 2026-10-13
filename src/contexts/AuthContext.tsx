@@ -2,12 +2,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { AuthContextType, LoginRequest, User } from '../types';
 import { authAPI, notificationsAPI, unsubscribeBrowserPushSubscription } from '../services/api';
 import {
-  CUSTOM_BACKEND_STORAGE_KEY,
-  clearBackendScopedStorage,
-} from '../utils/backendConfig';
-import {
-  ACCOUNT_DATA_DELETION_CONFIRMED_KEY,
-  ACCOUNT_DATA_LIFECYCLE_LOCK_KEY,
+  ACCOUNT_DATA_DELETION_RECOVERY_KEY,
+  ACCOUNT_DATA_GENERATION_KEY,
+  confirmAccountDataDeletion,
+  purgeDeletedAccountBrowserData,
   canWriteAccountData,
   captureAccountDataGeneration,
   completeAccountDataDeletion,
@@ -50,81 +48,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (hasAccountDataDeletionMarker()) {
             const deletionGeneration = captureAccountDataGeneration();
             if (!isAccountDataDeletionConfirmed(deletionGeneration)) {
-              let recoveredToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-              let profile: { success: boolean; data: User } | null = null;
-              let refreshedExpiresAt: number | null = null;
-
-              if (recoveredToken) {
-                try {
-                  profile = await authAPI.verifySessionForRecovery(recoveredToken);
-                } catch {
-                  // A 401 can mean an expired access token; try the saved refresh token.
-                }
+              const savedRecovery = localStorage.getItem(ACCOUNT_DATA_DELETION_RECOVERY_KEY);
+              const recovery = savedRecovery ? JSON.parse(savedRecovery) as {
+                accessToken: string; refreshToken: string;
+              } : {
+                accessToken: localStorage.getItem(ACCESS_TOKEN_KEY),
+                refreshToken: localStorage.getItem(REFRESH_TOKEN_KEY) || '',
+              };
+              if (!recovery.accessToken) return;
+              const result = await authAPI.recoverAccountDeletion(recovery.accessToken, recovery.refreshToken);
+              if (result.state === 'cancelled') {
+                // The server rotated the original session while holding its
+                // lifecycle lock. The old DELETE can no longer complete.
+                localStorage.setItem(ACCESS_TOKEN_KEY, result.access_token);
+                localStorage.setItem(TOKEN_EXPIRES_KEY, String(Date.now() + result.expires_in * 1000));
+                finishAccountDataDeletion(deletionGeneration);
+                const profile = await authAPI.verifySessionForRecovery(result.access_token);
+                if (profile.success !== true || !profile.data) return;
+                localStorage.setItem(USER_KEY, JSON.stringify(profile.data));
+                if (!mounted) return;
+                setToken(result.access_token);
+                setUser(profile.data);
+                setIsAuthenticated(true);
+                return;
               }
-
-              if (!profile) {
-                const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-                if (!savedRefreshToken) return;
-                try {
-                  const refreshed = await authAPI.refreshSessionForRecovery(savedRefreshToken);
-                  recoveredToken = refreshed.access_token;
-                  refreshedExpiresAt = Date.now() + refreshed.expires_in * 1000;
-                  profile = await authAPI.verifySessionForRecovery(recoveredToken);
-                } catch {
-                  // A failed or unreachable refresh cannot confirm account deletion.
-                  return;
-                }
-              }
-
-              if (!profile || !recoveredToken) return;
-              if (refreshedExpiresAt !== null) {
-                localStorage.setItem(ACCESS_TOKEN_KEY, recoveredToken);
-                localStorage.setItem(TOKEN_EXPIRES_KEY, refreshedExpiresAt.toString());
-              }
-              localStorage.setItem(USER_KEY, JSON.stringify(profile.data));
-              finishAccountDataDeletion(deletionGeneration);
-              setToken(recoveredToken);
-              setUser(profile.data);
-              setIsAuthenticated(true);
-              return;
+              // The original persisted session is gone. This only authorizes
+              // local cleanup; it does not claim that upstream data was erased.
+              confirmAccountDataDeletion(deletionGeneration);
             }
-            const customBackendUrl = localStorage.getItem(CUSTOM_BACKEND_STORAGE_KEY);
-            clearBackendScopedStorage();
-            for (let index = localStorage.length - 1; index >= 0; index -= 1) {
-              const key = localStorage.key(index);
-              if (
-                key
-                && key !== CUSTOM_BACKEND_STORAGE_KEY
-                && key !== '__lanis_account_data_generation'
-                && key !== '__lanis_account_deletion_epoch'
-                && key !== ACCOUNT_DATA_DELETION_CONFIRMED_KEY
-                && key !== ACCOUNT_DATA_LIFECYCLE_LOCK_KEY
-              ) {
-                localStorage.removeItem(key);
-              }
-            }
-            if (customBackendUrl) localStorage.setItem(CUSTOM_BACKEND_STORAGE_KEY, customBackendUrl);
-
-            const cleanupTasks: Promise<unknown>[] = [];
-            if ('serviceWorker' in navigator) {
-              cleanupTasks.push(Promise.resolve().then(async () => {
-                const registration = await navigator.serviceWorker.getRegistration();
-                const subscription = await registration?.pushManager.getSubscription();
-                if (subscription) await subscription.unsubscribe();
-              }));
-            }
-            if ('caches' in window) {
-              cleanupTasks.push(Promise.resolve().then(async () => {
-                const names = await caches.keys();
-                await Promise.all(
-                  names
-                    .filter(name => !name.startsWith('lanis-ui-shell-'))
-                    .map(name => caches.delete(name)),
-                );
-              }));
-            }
-            await Promise.allSettled(cleanupTasks);
-            finishAccountDataDeletion(deletionGeneration);
+            const cleanupComplete = await purgeDeletedAccountBrowserData();
+            if (cleanupComplete) finishAccountDataDeletion(deletionGeneration);
             setToken(null);
             setUser(null);
             setIsAuthenticated(false);
@@ -149,8 +102,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
 
+    const recoverOnStorage = (event: StorageEvent) => {
+      if (event.key !== ACCOUNT_DATA_GENERATION_KEY) return;
+      if (hasAccountDataDeletionMarker()) {
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsLoading(true);
+      }
+      void initializeAuth();
+    };
+    const recoverOnline = () => { if (hasAccountDataDeletionMarker()) void initializeAuth(); };
+    window.addEventListener('storage', recoverOnStorage);
+    window.addEventListener('online', recoverOnline);
     void initializeAuth();
     return () => {
+      window.removeEventListener('storage', recoverOnStorage);
+      window.removeEventListener('online', recoverOnline);
       mounted = false;
     };
   }, []);
@@ -183,6 +151,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (credentials: LoginRequest): Promise<boolean> => {
+    if (hasAccountDataDeletionMarker()) return false;
     let writeGeneration = captureAccountDataGeneration();
     try {
       const response = await authAPI.login(credentials);

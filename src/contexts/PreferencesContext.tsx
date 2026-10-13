@@ -11,7 +11,7 @@ const LEGACY_PREFERENCES_OWNER_KEY = 'lanis_preferences_legacy_owner';
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   appearance: { theme_mode: 'system', theme_color: 'ruby' },
-  sidebar: { order: DEFAULT_SIDEBAR_ORDER, hidden_items: [] },
+  sidebar: { order: DEFAULT_SIDEBAR_ORDER, hidden_items: [], show_feedback_button: true },
   dashboard: {
     pinned_modules: [],
     hidden_modules: [],
@@ -57,10 +57,35 @@ const mergePreferences = (
   onboarding: { ...current.onboarding, ...patch.onboarding },
 });
 
+const mergePersistedPatch = (
+  current: UserPreferences,
+  patch: UserPreferencesPatch,
+  persisted: UserPreferences,
+): UserPreferences => {
+  const merged = { ...current };
+  for (const group of Object.keys(patch) as Array<keyof UserPreferences>) {
+    const fields = patch[group];
+    if (!fields) continue;
+
+    const mergedGroup = { ...merged[group] } as Record<string, unknown>;
+    const persistedGroup = persisted[group] as unknown as Record<string, unknown>;
+    for (const field of Object.keys(fields)) {
+      if (Object.prototype.hasOwnProperty.call(persistedGroup, field)) {
+        mergedGroup[field] = persistedGroup[field];
+      }
+    }
+    (merged as unknown as Record<string, unknown>)[group] = mergedGroup;
+  }
+  return merged;
+};
+
 const normalizePreferences = (value?: Partial<UserPreferences>): UserPreferences => {
   const homework = value?.homework as (Partial<UserPreferences['homework']> & { hide_completed_in_overview?: boolean }) | undefined;
   const dashboard = value?.dashboard;
   const sidebar = value?.sidebar;
+  const showFeedbackButton = typeof sidebar?.show_feedback_button === 'boolean'
+    ? sidebar.show_feedback_button
+    : true;
   const hiddenSidebarItems = Array.isArray(sidebar?.hidden_items)
     ? sidebar.hidden_items.filter(item => typeof item === 'string')
     : [];
@@ -76,7 +101,7 @@ const normalizePreferences = (value?: Partial<UserPreferences>): UserPreferences
 
   return mergePreferences(DEFAULT_USER_PREFERENCES, {
     appearance: value?.appearance,
-    sidebar: { ...sidebar, hidden_items: hiddenSidebarItems },
+    sidebar: { ...sidebar, hidden_items: hiddenSidebarItems, show_feedback_button: showFeedbackButton },
     dashboard: {
       ...dashboard,
       pinned_modules: pinnedModules,
@@ -103,7 +128,7 @@ const legacyPreferences = (): UserPreferences => {
           : 'system';
   const color = localStorage.getItem('lanis_theme_color');
   const themeColor = color === 'emerald' || color === 'sapphire' || color === 'amethyst'
-    || color === 'ruby' || color === 'amber' || color === 'cyan'
+    || color === 'ruby' || color === 'amber' || color === 'cyan' || color === 'coral' || color === 'blush' || color === 'moss'
     ? color
     : 'ruby';
   const timetableMode = localStorage.getItem('lanis_timetable_view_mode');
@@ -257,7 +282,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
     const save = async () => {
       setIsSaving(true);
       try {
-        const response = await settingsAPI.updatePreferences(token, next);
+        const response = await settingsAPI.updatePreferences(token, patch);
         if (patch.sidebar?.order) {
           const persistedOrder = response.preferences.sidebar?.order;
           if (!persistedOrder
@@ -265,15 +290,30 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
             throw new Error('The backend did not persist the sidebar order.');
           }
         }
-        const saved = normalizePreferences({
-          ...response.preferences,
-          sidebar: { ...next.sidebar, ...response.preferences.sidebar },
-          dashboard: { ...next.dashboard, ...response.preferences.dashboard },
-        });
+        if (patch.sidebar?.hidden_items) {
+          const persistedHiddenItems = response.preferences.sidebar?.hidden_items;
+          if (!persistedHiddenItems
+            || JSON.stringify(persistedHiddenItems) !== JSON.stringify(next.sidebar.hidden_items)) {
+            throw new Error('The backend did not persist the sidebar visibility settings.');
+          }
+        }
+        if (patch.sidebar?.show_feedback_button !== undefined) {
+          const persistedFeedbackButton = response.preferences.sidebar?.show_feedback_button;
+          if (typeof persistedFeedbackButton !== 'boolean'
+            || persistedFeedbackButton !== next.sidebar.show_feedback_button) {
+            throw new Error('The backend did not persist the feedback button preference.');
+          }
+        }
+        const persisted = normalizePreferences(response.preferences);
+        const saved = normalizePreferences(mergePersistedPatch(next, patch, persisted));
+        const hasUnsyncedLocalChanges = JSON.stringify(saved) !== JSON.stringify(persisted);
         if (canWriteAccountData(writeGeneration)
           && JSON.stringify(preferencesRef.current) === JSON.stringify(next)) {
           applyPreferences(saved);
-          writeCache(saved, false, writeGeneration);
+          writeCache(saved, hasUnsyncedLocalChanges, writeGeneration);
+          setSyncError(hasUnsyncedLocalChanges
+            ? 'Änderungen sind lokal gespeichert und werden beim nächsten Versuch synchronisiert.'
+            : '');
         }
         return true;
       } catch (error) {

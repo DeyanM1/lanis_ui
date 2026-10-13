@@ -335,6 +335,21 @@ async function ensureValidToken(): Promise<string | null> {
 }
 
 export const authAPI = {
+  async recoverAccountDeletion(accessToken: string, refreshToken: string): Promise<
+    { state: 'revoked' } | { state: 'cancelled'; access_token: string; expires_in: number }
+  > {
+    const response = await sessionRecoveryClient.post('/account/deletion/recover', {
+      access_token: accessToken, refresh_token: refreshToken,
+    });
+    if ((response.data.state !== 'revoked' && response.data.state !== 'cancelled')
+      || (response.data.state === 'cancelled' && (
+        typeof response.data.access_token !== 'string' || !response.data.access_token
+        || !Number.isFinite(response.data.expires_in) || response.data.expires_in <= 0
+      ))) {
+      throw new Error('Invalid deletion recovery response');
+    }
+    return response.data;
+  },
   async verifySessionForRecovery(token: string): Promise<{ success: boolean; data: User }> {
     const response = await sessionRecoveryClient.get<{ success: boolean; data: User }>('/benutzer', {
       headers: { 'X-Session-Token': token },
@@ -1201,5 +1216,21 @@ export const cacheStatusAPI = {
       throw new Error('Invalid cache status');
     }
     return status as { available: boolean; last_successful_fetch_at: string | null; snapshot_count: number; retention_seconds: number };
+  },
+};
+
+export type FeedbackCategory = 'feature' | 'bug' | 'general';
+
+export const feedbackAPI = {
+  async submit(
+    token: string,
+    payload: { category: FeedbackCategory; title: string; details: string; page: string },
+  ): Promise<{ success: boolean; id: number }> {
+    const response = await apiClient.post<{ success: boolean; id: number }>(
+      '/feedback',
+      payload,
+      { headers: { 'X-Session-Token': token } },
+    );
+    return response.data;
   },
 };

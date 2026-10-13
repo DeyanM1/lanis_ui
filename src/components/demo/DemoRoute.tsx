@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../../contexts/AuthContext';
 import { PreferencesProvider } from '../../contexts/PreferencesContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -12,7 +12,8 @@ import {
   hasAccountDataDeletionOccurredSince,
   captureAccountDataGeneration,
   hasAccountDataLoginSince,
-  isAccountDataDeletionInProgress,
+  hasAccountDataDeletionMarker,
+  withAccountDataLifecycleLock,
   readAccountDataDeletionEpoch,
 } from '../../utils/accountDataWrites';
 
@@ -64,7 +65,7 @@ const readAppearance = (values: Map<string, string | null>) => {
           : 'system';
   const storedColor = values.get('lanis_theme_color');
   const themeColor: ThemeColor = storedColor === 'emerald' || storedColor === 'sapphire' || storedColor === 'amethyst'
-    || storedColor === 'ruby' || storedColor === 'amber' || storedColor === 'cyan'
+    || storedColor === 'ruby' || storedColor === 'amber' || storedColor === 'cyan' || storedColor === 'coral' || storedColor === 'blush'
     ? storedColor
     : 'ruby';
   return { themeMode, themeColor };
@@ -80,18 +81,14 @@ const seedLocalStorage = () => {
     DEMO_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)]),
   );
   const initialGeneration = captureAccountDataGeneration();
-  let restoreAllowed = !isAccountDataDeletionInProgress();
-  let deletionGeneration = restoreAllowed ? null : initialGeneration;
+  let restoreAllowed = true;
+  let deletionGeneration: number | null = null;
   const initialDeletionEpoch = readAccountDataDeletionEpoch();
   const valuesOwnedByDemo = new Map<string, string | null>();
-  if (!restoreAllowed && tabId) writeDemoStorageSnapshot(tabId, null);
   const handleExternalAuthRemoval = (event: StorageEvent) => {
     if (
       event.key === ACCOUNT_DATA_GENERATION_KEY
-      && (
-        isAccountDataDeletionInProgress()
-        || hasAccountDataDeletionOccurredSince(initialDeletionEpoch)
-      )
+      && hasAccountDataDeletionOccurredSince(initialDeletionEpoch)
     ) {
       restoreAllowed = false;
       deletionGeneration = captureAccountDataGeneration();
@@ -115,35 +112,49 @@ const seedLocalStorage = () => {
   ['messages_cache', 'courses_cache', 'username_cache', 'dsb_plan_cache_v2'].forEach(key => localStorage.removeItem(key));
   DEMO_STORAGE_KEYS.forEach(key => valuesOwnedByDemo.set(key, localStorage.getItem(key)));
 
-  return () => {
+  return async () => {
     stopTrackingDemoWrites();
     window.removeEventListener('storage', handleExternalAuthRemoval);
-    const valuesToRestore = tabId && readDemoStorageSnapshot(tabId)
-      ? new Map(Object.entries(readDemoStorageSnapshot(tabId) || {}))
-      : previous;
-    const deletionWasObserved = !restoreAllowed
-      || hasAccountDataDeletionOccurredSince(initialDeletionEpoch);
-    if (!deletionWasObserved) {
-      valuesToRestore.forEach((value, key) => {
-        if (value === null) localStorage.removeItem(key);
-        else localStorage.setItem(key, value);
-      });
-    } else {
-      const loginHasSupersededDeletion = deletionGeneration !== null
-        ? hasAccountDataLoginSince(deletionGeneration)
-        : hasAccountDataLoginSince(initialGeneration);
-      const keysToRemove = loginHasSupersededDeletion
-        ? DEMO_OWNED_STORAGE_KEYS
-        : DEMO_STORAGE_KEYS;
-      keysToRemove.forEach(key => {
-        const demoValue = valuesOwnedByDemo.get(key);
-        if (demoValue !== null && demoValue !== undefined && localStorage.getItem(key) === demoValue) {
-          localStorage.removeItem(key);
-        }
-      });
+    const restore = () => {
+      const valuesToRestore = tabId && readDemoStorageSnapshot(tabId)
+        ? new Map(Object.entries(readDemoStorageSnapshot(tabId) || {}))
+        : previous;
+      const deletionWasObserved = !restoreAllowed
+        || hasAccountDataDeletionOccurredSince(initialDeletionEpoch);
+      const loginHasSupersededSnapshot = captureAccountDataGeneration() > initialGeneration
+        && hasAccountDataLoginSince(initialGeneration);
+      if (hasAccountDataDeletionMarker()) {
+        DEMO_OWNED_STORAGE_KEYS.forEach(key => {
+          if (localStorage.getItem(key) === valuesOwnedByDemo.get(key)) localStorage.removeItem(key);
+        });
+        return null;
+      }
+      if (!deletionWasObserved && !loginHasSupersededSnapshot) {
+        valuesToRestore.forEach((value, key) => {
+          if (value === null) localStorage.removeItem(key);
+          else localStorage.setItem(key, value);
+        });
+      } else {
+        const loginHasSupersededDeletion = deletionGeneration !== null
+          ? hasAccountDataLoginSince(deletionGeneration)
+          : hasAccountDataLoginSince(initialGeneration);
+        const keysToRemove = loginHasSupersededDeletion
+          ? DEMO_OWNED_STORAGE_KEYS
+          : DEMO_STORAGE_KEYS;
+        keysToRemove.forEach(key => {
+          const demoValue = valuesOwnedByDemo.get(key);
+          if (demoValue !== null && demoValue !== undefined && localStorage.getItem(key) === demoValue) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+      if (tabId) writeDemoStorageSnapshot(tabId, null);
+      return !deletionWasObserved && !loginHasSupersededSnapshot ? valuesToRestore : null;
+    };
+    if (hasAccountDataDeletionMarker()) {
+      return withAccountDataLifecycleLock(async () => restore());
     }
-    if (tabId) writeDemoStorageSnapshot(tabId, null);
-    return restoreAllowed ? valuesToRestore : null;
+    return restore();
   };
 };
 
@@ -151,19 +162,23 @@ const DemoRoute: React.FC = () => {
   const { setThemeMode, setThemeColor } = useTheme();
 
   useEffect(() => {
+    if (hasAccountDataDeletionMarker()) return;
     const restoreStorage = seedLocalStorage();
     const tabId = getDemoTabId();
     const stopHeartbeat = tabId ? keepDemoSessionAlive(tabId) : () => {};
     return () => {
       stopHeartbeat();
-      const previous = restoreStorage();
-      if (previous) {
-        const appearance = readAppearance(previous);
-        setThemeMode(appearance.themeMode);
-        setThemeColor(appearance.themeColor);
-      }
+      void restoreStorage().then(previous => {
+        if (previous) {
+          const appearance = readAppearance(previous);
+          setThemeMode(appearance.themeMode);
+          setThemeColor(appearance.themeColor);
+        }
+      }).catch(error => console.warn('Could not restore demo storage:', error));
     };
   }, [setThemeColor, setThemeMode]);
+
+  if (hasAccountDataDeletionMarker()) return <Navigate to="/login" replace />;
 
   return (
     <AuthContext.Provider value={mockAuth}>

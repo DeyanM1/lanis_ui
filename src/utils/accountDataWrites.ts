@@ -1,6 +1,9 @@
+import { CUSTOM_BACKEND_STORAGE_KEY, clearBackendScopedStorage } from './backendConfig';
+
 export const ACCOUNT_DATA_GENERATION_KEY = '__lanis_account_data_generation';
 export const ACCOUNT_DATA_DELETION_EPOCH_KEY = '__lanis_account_deletion_epoch';
 export const ACCOUNT_DATA_DELETION_CONFIRMED_KEY = '__lanis_account_deletion_confirmed';
+export const ACCOUNT_DATA_DELETION_RECOVERY_KEY = '__lanis_account_deletion_recovery';
 export const ACCOUNT_DATA_LIFECYCLE_LOCK_KEY = '__lanis_account_data_lifecycle_lock';
 
 let deletionInProgress = false;
@@ -234,13 +237,16 @@ export const canWriteAccountData = (generation: number): boolean => {
   if (!state.deleting && (!markerPresent || deletionLeaseTimer === undefined)) {
     deletionInProgress = false;
   }
-  return !deletionInProgress && !state.deleting && state.generation === generation;
+  return !markerPresent && !deletionInProgress && !state.deleting && state.generation === generation;
 };
 
-export const beginAccountDataDeletion = (): number => {
+export const beginAccountDataDeletion = (accessToken: string, refreshToken: string): number => {
+  // Persist recovery identity before sending DELETE. Keep it through browser
+  // cleanup so a crash or a failed confirmation write remains recoverable.
+  window.localStorage.setItem(ACCOUNT_DATA_DELETION_RECOVERY_KEY, JSON.stringify({ accessToken, refreshToken }));
   const generation = captureAccountDataGeneration() + 1;
+  window.localStorage.setItem(ACCOUNT_DATA_GENERATION_KEY, `${generation}:deleting:${Date.now() + DELETION_LEASE_MS}`);
   deletionInProgress = true;
-  writeDeletionLease(generation);
   startDeletionLeaseTimer(generation);
   return generation;
 };
@@ -284,6 +290,7 @@ export const finishAccountDataDeletion = (generation: number): void => {
       ACCOUNT_DATA_GENERATION_KEY,
       `${nextGeneration}:active`,
     );
+    window.localStorage.removeItem(ACCOUNT_DATA_DELETION_RECOVERY_KEY);
   } catch {
     // Keep the in-memory state aligned when local storage is unavailable.
   }
@@ -291,13 +298,14 @@ export const finishAccountDataDeletion = (generation: number): void => {
 
 export const completeAccountDataDeletion = (expectedGeneration: number): boolean => {
   const current = readGenerationState();
-  if (current.deleting || current.generation !== expectedGeneration) return false;
+  if (hasAccountDataDeletionMarker() || current.deleting || current.generation !== expectedGeneration) return false;
   if (deletionLeaseTimer !== undefined) window.clearInterval(deletionLeaseTimer);
   deletionLeaseTimer = undefined;
   const generation = captureAccountDataGeneration() + 1;
   deletionInProgress = false;
   try {
     window.localStorage.removeItem(ACCOUNT_DATA_DELETION_CONFIRMED_KEY);
+    window.localStorage.removeItem(ACCOUNT_DATA_DELETION_RECOVERY_KEY);
     window.localStorage.setItem(
       ACCOUNT_DATA_GENERATION_KEY,
       `${generation}:login`,
@@ -307,4 +315,44 @@ export const completeAccountDataDeletion = (expectedGeneration: number): boolean
     // A successful login should not fail because this cache guard is unavailable.
     return false;
   }
+};
+
+
+export const purgeDeletedAccountBrowserData = async (): Promise<boolean> => {
+  // Keep recovery identity and coordination until every cleanup step succeeds.
+  let storageClean = false;
+  try {
+    clearBackendScopedStorage();
+    const preserved = new Set([
+      CUSTOM_BACKEND_STORAGE_KEY, ACCOUNT_DATA_GENERATION_KEY,
+      ACCOUNT_DATA_DELETION_EPOCH_KEY, ACCOUNT_DATA_DELETION_CONFIRMED_KEY,
+      ACCOUNT_DATA_DELETION_RECOVERY_KEY, ACCOUNT_DATA_LIFECYCLE_LOCK_KEY,
+    ]);
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key && !preserved.has(key)) localStorage.removeItem(key);
+    }
+    storageClean = true;
+  } catch {
+    // Leave the recovery marker for the next visit if storage is unavailable.
+  }
+  const cleanupTasks: Promise<unknown>[] = [];
+  if ('serviceWorker' in navigator) {
+    cleanupTasks.push(Promise.resolve().then(async () => {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (subscription && !await subscription.unsubscribe()) {
+        throw new Error('Push subscription cleanup failed');
+      }
+    }));
+  }
+  if ('caches' in window) {
+    cleanupTasks.push(Promise.resolve().then(async () => {
+      const names = await caches.keys();
+      await Promise.all(names.filter(name => !name.startsWith('lanis-ui-shell-'))
+        .map(name => caches.delete(name)));
+    }));
+  }
+  const results = await Promise.allSettled(cleanupTasks);
+  return storageClean && results.every(result => result.status === 'fulfilled');
 };

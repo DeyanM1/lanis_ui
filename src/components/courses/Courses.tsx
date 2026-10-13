@@ -257,7 +257,18 @@ const Courses: React.FC = () => {
     if (!match || !token) return;
     event.preventDefault();
     try {
-      const blob = await coursesAPI.downloadFile(token, match[1]);
+      let blob: Blob;
+      try {
+        blob = await coursesAPI.downloadFile(token, match[1]);
+      } catch (error) {
+        const courseId = selectedCourse?.course_id || courseIdFromUrl;
+        if (!courseId || !axios.isAxiosError(error) || error.response?.status !== 404) throw error;
+        // Older course links predate attachment ownership tracking. Re-open the
+        // course through SPH to establish access before retrying the download.
+        const course = await coursesAPI.getCourseDetails(token, courseId);
+        if (!course.success) throw error;
+        blob = await coursesAPI.downloadFile(token, match[1]);
+      }
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -266,6 +277,7 @@ const Courses: React.FC = () => {
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch (error) {
       console.error('Could not download course attachment', error);
+      setError('Die Datei konnte nicht geladen werden. Bitte öffne den Kurs erneut und versuche es noch einmal.');
     }
   };
   const { preferences } = usePreferences();
