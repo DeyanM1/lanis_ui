@@ -208,11 +208,11 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         </button>
         <Link
           to={`${basePath}/dashboard`}
-          className="flex items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          className="flex items-center gap-2 rounded-lg focus:outline-none"
           aria-label="Zum Dashboard"
         >
           <AppIcon alt="Schulportal" className="h-7 w-7 rounded-lg" />
-          <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">Schulportal</span>
+          <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">Lanis</span>
         </Link>
         <button
           onClick={() => setIsSearchOpen(true)}
