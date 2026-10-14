@@ -166,6 +166,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         username: response.username,
         school_id: response.school_id,
         encryption_ready: response.encryption_ready.toString(),
+        is_first_school_user: String(response.is_first_school_user === true),
       };
       const loginPublished = await withAccountDataLifecycleLock(async () => {
         if (!canWriteAccountData(writeGeneration)) return false;
@@ -194,10 +195,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userResponse = await authAPI.getUserProfile(response.access_token);
         if (userResponse.success && canWriteAccountData(writeGeneration)) {
           const accountUser = {
+            ...basicUser,
             ...userResponse.data,
             username: response.username,
             school_id: response.school_id,
             encryption_ready: response.encryption_ready.toString(),
+            is_first_school_user: basicUser.is_first_school_user,
           };
           setUser(accountUser);
           localStorage.setItem(USER_KEY, JSON.stringify(accountUser));
@@ -205,11 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.warn('Failed to fetch user profile:', error);
         if (canWriteAccountData(writeGeneration)) {
-          setUser({
-            username: response.username,
-            school_id: response.school_id,
-            encryption_ready: response.encryption_ready.toString(),
-          });
+          setUser(basicUser);
         }
       }
 
