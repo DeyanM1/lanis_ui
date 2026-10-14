@@ -31,6 +31,7 @@ import GlobalSearch from '../search/GlobalSearch';
 import OutageNotice from '../status/OutageNotice';
 import { PwaInstallProvider } from '../../contexts/PwaInstallContext';
 import { getModuleAvailability, readModulesCache, writeModulesCache } from '../../utils/moduleCache';
+import { captureAccountDataGeneration } from '../../utils/accountDataWrites';
 import type { CachedModule } from '../../utils/moduleCache';
 import { getThemeIconUrl, getThemeManifestUrl, THEME_COLOR_HEX } from '../../utils/themeAssets';
 import AppIcon from '../AppIcon';
@@ -101,6 +102,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
 
   React.useEffect(() => {
     if (!token) return;
+    const writeGeneration = captureAccountDataGeneration();
     const abortController = new AbortController();
     const applyModuleAvailability = (modules: CachedModule[]) => {
       const availability = getModuleAvailability(modules);
@@ -118,7 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         if (abortController.signal.aborted) return;
         if (response.success) {
           applyModuleAvailability(response.modules);
-          writeModulesCache(user, response.modules);
+          writeModulesCache(user, response.modules, writeGeneration);
         }
       } catch (error) {
         if (axios.isCancel(error)) return;
