@@ -340,6 +340,8 @@ export const purgeDeletedAccountBrowserData = async (): Promise<boolean> => {
   if ('serviceWorker' in navigator) {
     cleanupTasks.push(Promise.resolve().then(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
+      const notifications = await registration?.getNotifications();
+      for (const notification of notifications || []) notification.close();
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription && !await subscription.unsubscribe()) {
         throw new Error('Push subscription cleanup failed');

@@ -45,7 +45,23 @@ const lifecycle = exportsObject;
   storage.setItem('lanis_custom_backend_url', 'https://custom.invalid');
   storage.setItem('profile_cache', 'private-profile');
   storage.setItem('auth_refresh_token', 'saved-refresh');
+  let closedNotifications = 0;
+  let unsubscribed = false;
+  context.navigator.serviceWorker = {
+    async getRegistration() {
+      return {
+        async getNotifications() {
+          return [{ close() { closedNotifications += 1; } }, { close() { closedNotifications += 1; } }];
+        },
+        pushManager: { async getSubscription() {
+          return { async unsubscribe() { unsubscribed = true; return true; } };
+        } },
+      };
+    },
+  };
   assert(await lifecycle.purgeDeletedAccountBrowserData());
+  assert.equal(closedNotifications, 2, 'Existing OS notifications must be dismissed');
+  assert(unsubscribed);
   assert.equal(storage.getItem('profile_cache'), null);
   assert.equal(storage.getItem('auth_refresh_token'), null);
   assert.equal(storage.getItem(lifecycle.ACCOUNT_DATA_DELETION_RECOVERY_KEY), proof);
