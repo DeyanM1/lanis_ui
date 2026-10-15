@@ -54,7 +54,7 @@ function safeHttpsUrl(value: string | null | undefined): string | null {
   if (!value) return null;
   try {
     const parsed = new URL(value);
-    return parsed.protocol === 'https:' ? parsed.href : null;
+    return parsed.protocol === 'https:' && !parsed.username && !parsed.password ? parsed.href : null;
   } catch {
     return null;
   }
@@ -289,9 +289,11 @@ const Videokonferenz: React.FC = () => {
           <section aria-label="Deine Videoräume">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-medium text-surface-600 dark:text-surface-300">
-                {overview?.open_count
-                  ? `${overview.open_count} ${overview.open_count === 1 ? 'Raum ist' : 'Räume sind'} jetzt offen`
-                  : 'Noch kein Raum ist offen'}
+                {!overview.status_live
+                  ? 'Aktueller Raumstatus nicht verfügbar'
+                  : overview.open_count
+                    ? `${overview.open_count} ${overview.open_count === 1 ? 'Raum ist' : 'Räume sind'} jetzt offen`
+                    : 'Noch kein Raum ist offen'}
               </p>
               {refreshing && <span className="text-xs text-surface-400">Wird geprüft …</span>}
             </div>
