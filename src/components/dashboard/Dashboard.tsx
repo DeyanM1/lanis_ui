@@ -52,6 +52,7 @@ const Dashboard: React.FC = () => {
   const [externalModule, setExternalModule] = useState<Module | null>(null);
   const viewMode = preferences.dashboard.view_mode;
   const showSearch = preferences.dashboard.show_search;
+  const showSubtitle = preferences.dashboard.show_subtitle;
   const [isEditMode, setIsEditMode] = useState(false);
   const pinnedModules = preferences.dashboard.pinned_modules;
   const hiddenModules = preferences.dashboard.hidden_modules;
@@ -298,6 +299,25 @@ const Dashboard: React.FC = () => {
       />
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
+        {(showSubtitle || isEditMode) && (
+          <div className="flex items-center gap-2">
+            <p className={clsx('page-subtitle', !showSubtitle && 'opacity-50')}>
+              Alle verfügbaren Apps und Module
+            </p>
+            {isEditMode && (
+              <button
+                type="button"
+                onClick={() => void updatePreferences({ dashboard: { show_subtitle: !showSubtitle } })}
+                className="shrink-0 rounded-lg p-1.5 text-surface-500 transition-colors hover:bg-surface-100 hover:text-primary-600 dark:text-surface-400 dark:hover:bg-surface-700 dark:hover:text-primary-400"
+                aria-label={showSubtitle ? 'Dashboard-Untertitel ausblenden' : 'Dashboard-Untertitel einblenden'}
+                aria-pressed={showSubtitle}
+                title={showSubtitle ? 'Untertitel ausblenden' : 'Untertitel einblenden'}
+              >
+                {showSubtitle ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <DashboardNotifications />

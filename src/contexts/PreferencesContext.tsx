@@ -17,6 +17,7 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
     hidden_modules: [],
     view_mode: 'grid',
     show_search: true,
+    show_subtitle: true,
     notifications_enabled: true,
     notification_messages_enabled: true,
     notification_native_enabled: true,

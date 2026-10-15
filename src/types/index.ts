@@ -119,6 +119,7 @@ export interface UserPreferences {
     hidden_modules: string[];
     view_mode: DashboardViewMode;
     show_search: boolean;
+    show_subtitle: boolean;
     notifications_enabled: boolean;
     notification_messages_enabled: boolean;
     notification_native_enabled: boolean;
