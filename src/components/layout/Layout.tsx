@@ -21,6 +21,7 @@ import {
   ClipboardDocumentListIcon,
   ClipboardDocumentCheckIcon,
   FolderIcon,
+  DocumentDuplicateIcon,
   MagnifyingGlassIcon,
   MinusIcon,
   VideoCameraIcon,
@@ -67,6 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const feedbackOpenerRef = React.useRef<HTMLButtonElement | null>(null);
   const closeFeedbackDialog = React.useCallback(() => setIsFeedbackOpen(false), []);
   const [hasNativeDateispeicher, setHasNativeDateispeicher] = React.useState(false);
+  const [hasNativeDateiverteilung, setHasNativeDateiverteilung] = React.useState(false);
   const [hasNativeSubstitutionPlan, setHasNativeSubstitutionPlan] = React.useState(false);
   const [hasDsbModule, setHasDsbModule] = React.useState(false);
   const [hasWahlenModule, setHasWahlenModule] = React.useState(false);
@@ -109,6 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     const applyModuleAvailability = (modules: CachedModule[]) => {
       const availability = getModuleAvailability(modules);
       setHasNativeDateispeicher(availability.hasNativeDateispeicher);
+      setHasNativeDateiverteilung(availability.hasNativeDateiverteilung);
       setHasNativeSubstitutionPlan(availability.hasNativeSubstitutionPlan);
       setHasDsbModule(availability.hasDsbModule);
       setHasWahlenModule(availability.hasWahlenModule);
@@ -154,6 +157,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     messages: { name: 'Nachrichten', href: `${basePath}/messages`, icon: ChatBubbleLeftRightIcon },
     videokonferenz: { name: 'Videokonferenz', href: `${basePath}/videokonferenz`, icon: VideoCameraIcon },
     dateispeicher: { name: 'Dateispeicher', href: `${basePath}/dateispeicher`, icon: FolderIcon },
+    dateiverteilung: { name: 'Dateiverteilung', href: `${basePath}/dateiverteilung`, icon: DocumentDuplicateIcon },
     vertretungsplan: { name: 'Vertretungsplan', href: `${basePath}/vertretungsplan`, icon: ClipboardDocumentListIcon },
     dsb: { name: 'DSBmobile', href: `${basePath}/dsb`, icon: ClipboardDocumentListIcon },
     courses: { name: 'Mein Unterricht', href: `${basePath}/courses`, icon: AcademicCapIcon },
@@ -167,6 +171,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const availableItems = new Set<SidebarItemId>([
     'search', 'divider', 'dashboard', 'messages', 'courses', 'timetable', 'study-groups', 'calendar', 'profile', 'settings',
     ...(hasNativeDateispeicher ? ['dateispeicher' as const] : []),
+    ...(hasNativeDateiverteilung ? ['dateiverteilung' as const] : []),
     ...(hasNativeSubstitutionPlan ? ['vertretungsplan' as const] : []),
     ...(hasDsbModule ? ['dsb' as const] : []),
     ...(hasWahlenModule ? ['wahlen' as const] : []),
@@ -240,6 +245,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         onClose={() => setIsSearchOpen(false)}
         basePath={basePath}
         hasNativeDateispeicher={hasNativeDateispeicher}
+        hasNativeDateiverteilung={hasNativeDateiverteilung}
         hasNativeSubstitutionPlan={hasNativeSubstitutionPlan}
         hasDsbModule={hasDsbModule}
         hasVideokonferenzModule={hasVideokonferenzModule}

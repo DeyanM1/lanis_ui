@@ -21,6 +21,7 @@ import PrivacyPolicy from './components/legal/PrivacyPolicy';
 import Timetable from './components/timetable/Timetable';
 import StudyGroups from './components/study-groups/StudyGroups';
 import Dateispeicher from './components/dateispeicher/Dateispeicher';
+import Dateiverteilung from './components/dateiverteilung/Dateiverteilung';
 import Vertretungsplan from './components/vertretungsplan/Vertretungsplan';
 import CustomBackend from './components/settings/CustomBackend';
 import Onboarding from './components/onboarding/Onboarding';
@@ -88,6 +89,7 @@ const AppRoutes: React.FC = () => {
           <Route path="timetable" element={<Timetable />} />
           <Route path="study-groups" element={<StudyGroups />} />
           <Route path="dateispeicher" element={<Dateispeicher />} />
+          <Route path="dateiverteilung" element={<Dateiverteilung />} />
           <Route path="vertretungsplan" element={<Vertretungsplan />} />
           <Route path="videokonferenz" element={<Videokonferenz />} />
           <Route path="dsb" element={<Dsbmobile />} />
@@ -126,6 +128,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/timetable" element={<Timetable />} />
                     <Route path="/study-groups" element={<StudyGroups />} />
                     <Route path="/dateispeicher" element={<Dateispeicher />} />
+                    <Route path="/dateiverteilung" element={<Dateiverteilung />} />
                     <Route path="/vertretungsplan" element={<Vertretungsplan />} />
                     <Route path="/videokonferenz" element={<Videokonferenz />} />
                     <Route path="/dsb" element={<Dsbmobile />} />

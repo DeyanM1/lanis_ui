@@ -189,6 +189,7 @@ import {
   DateispeicherNodeResponse,
   DateispeicherSearchResponse,
   VideoRoomsResponse,
+  DateiverteilungResponse,
   StudyGroupsResponse,
   NotificationConfigResponse,
   DashboardNotificationsResponse,
@@ -904,6 +905,28 @@ export const dateispeicherAPI = {
   async downloadFile(token: string, fileId: number, signal?: AbortSignal): Promise<Blob> {
     const response = await apiClient.get<Blob>(`/dateispeicher/file/${fileId}`, {
       headers: { 'X-Session-Token': token },
+      responseType: 'blob',
+      signal,
+    });
+    return response.data;
+  },
+};
+
+// Native Schulportal targeted file-distribution API
+export const dateiverteilungAPI = {
+  async getOverview(token: string, refresh = false, signal?: AbortSignal): Promise<DateiverteilungResponse> {
+    const response = await apiClient.get<DateiverteilungResponse>('/dateiverteilung', {
+      headers: { 'X-Session-Token': token },
+      params: { refresh },
+      signal,
+    });
+    return response.data;
+  },
+
+  async downloadFile(token: string, downloadUrl: string, signal?: AbortSignal): Promise<Blob> {
+    const response = await apiClient.get<Blob>('/dateiverteilung/file', {
+      headers: { 'X-Session-Token': token },
+      params: { url: downloadUrl },
       responseType: 'blob',
       signal,
     });
