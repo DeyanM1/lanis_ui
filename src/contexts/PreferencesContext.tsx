@@ -4,15 +4,26 @@ import { useTheme } from './ThemeContext';
 import { settingsAPI } from '../services/api';
 import { UserPreferences, UserPreferencesPatch } from '../types';
 import { DEFAULT_SIDEBAR_ORDER, normalizeSidebarOrder } from '../utils/sidebarNavigation';
+import { canWriteAccountData, captureAccountDataGeneration } from '../utils/accountDataWrites';
 
 export const CURRENT_ONBOARDING_VERSION = 1;
 const LEGACY_PREFERENCES_OWNER_KEY = 'lanis_preferences_legacy_owner';
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
-  appearance: { theme_mode: 'system', theme_color: 'cyan' },
-  sidebar: { order: DEFAULT_SIDEBAR_ORDER, hidden_items: [] },
-  dashboard: { pinned_modules: [], hidden_modules: [], view_mode: 'grid' },
-  timetable: { view_mode: 'rolling', show_homework: true, show_exams: true },
+  appearance: { theme_mode: 'system', theme_color: 'ruby' },
+  sidebar: { order: DEFAULT_SIDEBAR_ORDER, hidden_items: [], show_feedback_button: true },
+  dashboard: {
+    pinned_modules: [],
+    hidden_modules: [],
+    view_mode: 'grid',
+    notifications_enabled: true,
+    notification_messages_enabled: true,
+    notification_native_enabled: true,
+    notification_dsb_enabled: true,
+    notification_show_read: false,
+    notification_limit: 20,
+  },
+  timetable: { view_mode: 'rolling', layout_mode: 'cards', show_homework: true, show_exams: true, class_colors: {} },
   homework: { completed_display: 'green' },
   vertretungsplan: { class_override: '' },
   onboarding: { version: 0, status: 'not_started', last_step: 'welcome' },
@@ -46,10 +57,35 @@ const mergePreferences = (
   onboarding: { ...current.onboarding, ...patch.onboarding },
 });
 
+const mergePersistedPatch = (
+  current: UserPreferences,
+  patch: UserPreferencesPatch,
+  persisted: UserPreferences,
+): UserPreferences => {
+  const merged = { ...current };
+  for (const group of Object.keys(patch) as Array<keyof UserPreferences>) {
+    const fields = patch[group];
+    if (!fields) continue;
+
+    const mergedGroup = { ...merged[group] } as Record<string, unknown>;
+    const persistedGroup = persisted[group] as unknown as Record<string, unknown>;
+    for (const field of Object.keys(fields)) {
+      if (Object.prototype.hasOwnProperty.call(persistedGroup, field)) {
+        mergedGroup[field] = persistedGroup[field];
+      }
+    }
+    (merged as unknown as Record<string, unknown>)[group] = mergedGroup;
+  }
+  return merged;
+};
+
 const normalizePreferences = (value?: Partial<UserPreferences>): UserPreferences => {
   const homework = value?.homework as (Partial<UserPreferences['homework']> & { hide_completed_in_overview?: boolean }) | undefined;
   const dashboard = value?.dashboard;
   const sidebar = value?.sidebar;
+  const showFeedbackButton = typeof sidebar?.show_feedback_button === 'boolean'
+    ? sidebar.show_feedback_button
+    : true;
   const hiddenSidebarItems = Array.isArray(sidebar?.hidden_items)
     ? sidebar.hidden_items.filter(item => typeof item === 'string')
     : [];
@@ -65,7 +101,7 @@ const normalizePreferences = (value?: Partial<UserPreferences>): UserPreferences
 
   return mergePreferences(DEFAULT_USER_PREFERENCES, {
     appearance: value?.appearance,
-    sidebar: { ...sidebar, hidden_items: hiddenSidebarItems },
+    sidebar: { ...sidebar, hidden_items: hiddenSidebarItems, show_feedback_button: showFeedbackButton },
     dashboard: {
       ...dashboard,
       pinned_modules: pinnedModules,
@@ -92,9 +128,9 @@ const legacyPreferences = (): UserPreferences => {
           : 'system';
   const color = localStorage.getItem('lanis_theme_color');
   const themeColor = color === 'emerald' || color === 'sapphire' || color === 'amethyst'
-    || color === 'ruby' || color === 'amber' || color === 'cyan'
+    || color === 'ruby' || color === 'amber' || color === 'cyan' || color === 'coral' || color === 'blush' || color === 'moss'
     ? color
-    : 'cyan';
+    : 'ruby';
   const timetableMode = localStorage.getItem('lanis_timetable_view_mode');
   let pinnedModules: string[] = [];
   try {
@@ -150,13 +186,18 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
     setThemeColor(next.appearance.theme_color);
   }, [setThemeColor, setThemeMode]);
 
-  const writeCache = useCallback((next: UserPreferences, dirty: boolean) => {
-    if (!cacheKey) return;
+  const writeCache = useCallback((
+    next: UserPreferences,
+    dirty: boolean,
+    generation = captureAccountDataGeneration(),
+  ) => {
+    if (!cacheKey || !canWriteAccountData(generation)) return;
     localStorage.setItem(cacheKey, JSON.stringify({ preferences: next, dirty } satisfies CachedPreferences));
   }, [cacheKey]);
 
   useEffect(() => {
     const controller = new AbortController();
+    const writeGeneration = captureAccountDataGeneration();
     const cached = readCache(cacheKey);
     const legacyOwner = localStorage.getItem(LEGACY_PREFERENCES_OWNER_KEY);
     const canClaimLegacyPreferences = Boolean(sync && token && cacheKey && !legacyOwner);
@@ -169,7 +210,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
       return () => controller.abort();
     }
 
-    if (canClaimLegacyPreferences) {
+    if (canClaimLegacyPreferences && canWriteAccountData(writeGeneration)) {
       localStorage.setItem(LEGACY_PREFERENCES_OWNER_KEY, cacheKey);
     }
 
@@ -185,7 +226,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
     const load = async () => {
       try {
         const response = await settingsAPI.getPreferences(token, controller.signal);
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !canWriteAccountData(writeGeneration)) return;
         let next = normalizePreferences({
           ...response.preferences,
           sidebar: {
@@ -198,7 +239,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
         if (!response.stored || cached?.dirty) {
           next = cached?.preferences || localFallback;
           const migrated = await settingsAPI.updatePreferences(token, next, controller.signal);
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || !canWriteAccountData(writeGeneration)) return;
           next = normalizePreferences({
             ...migrated.preferences,
             sidebar: { ...next.sidebar, ...migrated.preferences.sidebar },
@@ -206,14 +247,15 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
           });
         }
         applyPreferences(next);
-        writeCache(next, false);
+        writeCache(next, false, writeGeneration);
         localStorage.removeItem('pinned_modules');
         localStorage.removeItem('lanis_timetable_view_mode');
       } catch (error) {
         if (controller.signal.aborted) return;
         console.error('Failed to load account preferences:', error);
+        if (!canWriteAccountData(writeGeneration)) return;
         applyPreferences(localFallback);
-        writeCache(localFallback, cached?.dirty ?? true);
+        writeCache(localFallback, cached?.dirty ?? true, writeGeneration);
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false);
@@ -226,20 +268,21 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
   }, [applyPreferences, cacheKey, sync, token, writeCache]);
 
   const updatePreferences = useCallback((patch: UserPreferencesPatch): Promise<boolean> => {
+    const writeGeneration = captureAccountDataGeneration();
     const next = mergePreferences(preferencesRef.current, patch);
     applyPreferences(next);
-    writeCache(next, true);
+    writeCache(next, true, writeGeneration);
     setSyncError('');
 
     if (!sync || !token) {
-      writeCache(next, false);
+      writeCache(next, false, writeGeneration);
       return Promise.resolve(true);
     }
 
     const save = async () => {
       setIsSaving(true);
       try {
-        const response = await settingsAPI.updatePreferences(token, next);
+        const response = await settingsAPI.updatePreferences(token, patch);
         if (patch.sidebar?.order) {
           const persistedOrder = response.preferences.sidebar?.order;
           if (!persistedOrder
@@ -247,19 +290,35 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode; sync?: b
             throw new Error('The backend did not persist the sidebar order.');
           }
         }
-        const saved = normalizePreferences({
-          ...response.preferences,
-          sidebar: { ...next.sidebar, ...response.preferences.sidebar },
-          dashboard: { ...next.dashboard, ...response.preferences.dashboard },
-        });
-        if (JSON.stringify(preferencesRef.current) === JSON.stringify(next)) {
+        if (patch.sidebar?.hidden_items) {
+          const persistedHiddenItems = response.preferences.sidebar?.hidden_items;
+          if (!persistedHiddenItems
+            || JSON.stringify(persistedHiddenItems) !== JSON.stringify(next.sidebar.hidden_items)) {
+            throw new Error('The backend did not persist the sidebar visibility settings.');
+          }
+        }
+        if (patch.sidebar?.show_feedback_button !== undefined) {
+          const persistedFeedbackButton = response.preferences.sidebar?.show_feedback_button;
+          if (typeof persistedFeedbackButton !== 'boolean'
+            || persistedFeedbackButton !== next.sidebar.show_feedback_button) {
+            throw new Error('The backend did not persist the feedback button preference.');
+          }
+        }
+        const persisted = normalizePreferences(response.preferences);
+        const saved = normalizePreferences(mergePersistedPatch(next, patch, persisted));
+        const hasUnsyncedLocalChanges = JSON.stringify(saved) !== JSON.stringify(persisted);
+        if (canWriteAccountData(writeGeneration)
+          && JSON.stringify(preferencesRef.current) === JSON.stringify(next)) {
           applyPreferences(saved);
-          writeCache(saved, false);
+          writeCache(saved, hasUnsyncedLocalChanges, writeGeneration);
+          setSyncError(hasUnsyncedLocalChanges
+            ? 'Änderungen sind lokal gespeichert und werden beim nächsten Versuch synchronisiert.'
+            : '');
         }
         return true;
       } catch (error) {
         console.error('Failed to save account preferences:', error);
-        writeCache(preferencesRef.current, true);
+        writeCache(preferencesRef.current, true, writeGeneration);
         setSyncError('Änderungen sind lokal gespeichert und werden beim nächsten Versuch synchronisiert.');
         return false;
       } finally {

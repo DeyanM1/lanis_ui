@@ -87,17 +87,17 @@ html.onboarding-active body::-webkit-scrollbar,
 
 /* Default CSS variables (overridden by JS on mount) */
 :root {
-  --color-primary-50: 236 254 255;
-  --color-primary-100: 207 250 254;
-  --color-primary-200: 165 243 252;
-  --color-primary-300: 103 232 249;
-  --color-primary-400: 34 211 238;
-  --color-primary-500: 6 182 212;
-  --color-primary-600: 8 145 178;
-  --color-primary-700: 14 116 144;
-  --color-primary-800: 21 94 117;
-  --color-primary-900: 22 78 99;
-  --color-primary-950: 8 51 68;
+  --color-primary-50: 255 241 242;
+  --color-primary-100: 255 228 230;
+  --color-primary-200: 254 205 211;
+  --color-primary-300: 253 164 175;
+  --color-primary-400: 251 113 133;
+  --color-primary-500: 244 63 94;
+  --color-primary-600: 225 29 72;
+  --color-primary-700: 190 18 60;
+  --color-primary-800: 159 18 57;
+  --color-primary-900: 136 19 55;
+  --color-primary-950: 76 5 25;
 
   --color-surface-50: 250 250 250;
   --color-surface-100: 245 245 245;
@@ -255,6 +255,46 @@ html[data-theme="cyan"] {
   --color-primary-800: 21 94 117;
   --color-primary-900: 22 78 99;
   --color-primary-950: 8 51 68;
+}
+html[data-theme="coral"] {
+  --color-primary-50: 254 227 234;
+  --color-primary-100: 253 210 206;
+  --color-primary-200: 251 185 177;
+  --color-primary-300: 249 159 148;
+  --color-primary-400: 249 143 130;
+  --color-primary-500: 248 131 121;
+  --color-primary-600: 192 79 61;
+  --color-primary-700: 170 67 55;
+  --color-primary-800: 146 58 54;
+  --color-primary-900: 118 48 46;
+  --color-primary-950: 72 28 26;
+}
+html[data-theme="blush"] {
+  --color-primary-50: 255 249 250;
+  --color-primary-100: 254 227 234;
+  --color-primary-200: 249 208 222;
+  --color-primary-300: 240 179 203;
+  --color-primary-400: 221 145 179;
+  --color-primary-500: 201 111 152;
+  --color-primary-600: 169 84 125;
+  --color-primary-700: 135 67 101;
+  --color-primary-800: 109 53 83;
+  --color-primary-900: 86 43 67;
+  --color-primary-950: 51 26 42;
+}
+
+html[data-theme="moss"] {
+  --color-primary-50: 244 245 243;
+  --color-primary-100: 226 228 224;
+  --color-primary-200: 197 201 194;
+  --color-primary-300: 161 168 155;
+  --color-primary-400: 120 129 111;
+  --color-primary-500: 75 87 63;
+  --color-primary-600: 66 77 55;
+  --color-primary-700: 56 65 47;
+  --color-primary-800: 45 52 38;
+  --color-primary-900: 34 39 28;
+  --color-primary-950: 21 24 18;
 }
 
 @layer components {

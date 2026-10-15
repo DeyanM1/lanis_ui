@@ -27,7 +27,10 @@ import {
 import { API_BASE_URL } from '../../services/api';
 import clsx from 'clsx';
 import ModuleIcon from './ModuleIcon';
+import DashboardNotifications from './DashboardNotifications';
 import { readModulesCache, writeModulesCache } from '../../utils/moduleCache';
+import { captureAccountDataGeneration } from '../../utils/accountDataWrites';
+import InstallPromotion from '../pwa/InstallPromotion';
 
 type DropTarget = {
   moduleName: string;
@@ -69,11 +72,12 @@ const Dashboard: React.FC = () => {
     if (!token) return;
     setModules(readModulesCache(user));
     const abortController = new AbortController();
-    loadModules(abortController.signal);
+    const writeGeneration = captureAccountDataGeneration();
+    loadModules(abortController.signal, writeGeneration);
     return () => abortController.abort();
   }, [token, user?.school_id, user?.username]);
 
-  const loadModules = async (signal?: AbortSignal) => {
+  const loadModules = async (signal?: AbortSignal, writeGeneration = captureAccountDataGeneration()) => {
     if (!token) return;
     setIsUpdating(true);
     try {
@@ -82,7 +86,7 @@ const Dashboard: React.FC = () => {
       if (signal?.aborted) return;
       if (modulesResponse.success) {
         setModules(modulesResponse.modules);
-        writeModulesCache(user, modulesResponse.modules);
+        writeModulesCache(user, modulesResponse.modules, writeGeneration);
         const allFolders: string[] = [];
         modulesResponse.modules.forEach((module: Module) => {
           module.folders.forEach((folder) => {
@@ -294,6 +298,10 @@ const Dashboard: React.FC = () => {
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Alle verfügbaren Apps und Module</p>
       </div>
+
+      <DashboardNotifications />
+
+      {basePath !== '/demo' && <InstallPromotion />}
 
       {error && (
         <div className="mb-6 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl text-sm animate-scale-in">

@@ -11,6 +11,11 @@ import {
 } from '../types';
 import { getMockResponse } from '../components/demo/mockApi';
 import { DEFAULT_API_BASE_URL, getApiBaseUrl } from '../utils/backendConfig';
+import {
+  canWriteAccountData,
+  captureAccountDataGeneration,
+  isAccountDataDeletionInProgress,
+} from '../utils/accountDataWrites';
 // School List API
 const SCHOOL_CACHE_KEY = 'school_cache';
 const SCHOOL_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -186,6 +191,8 @@ import {
   DateiverteilungResponse,
   StudyGroupsResponse,
   NotificationConfigResponse,
+  DashboardNotificationsResponse,
+  DashboardNotificationSource,
   NotificationPreferences,
   NotificationPreferencesResponse,
   VertretungsplanNotificationOptionsResponse,
@@ -206,6 +213,14 @@ const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Startup deletion recovery must verify or refresh a session without the normal
+// auth interceptors clearing credentials before the result can be evaluated.
+const sessionRecoveryClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Public homepage data must not pass through the authenticated client's
@@ -286,6 +301,7 @@ function isTokenExpiringSoon(thresholdMs: number = 5 * 60 * 1000): boolean {
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
+  const writeGeneration = captureAccountDataGeneration();
   const refreshTokenValue = getRefreshToken();
   if (!refreshTokenValue) return false;
 
@@ -294,6 +310,7 @@ async function refreshAccessToken(): Promise<boolean> {
       refresh_token: refreshTokenValue,
     } as TokenRefreshRequest);
 
+    if (!canWriteAccountData(writeGeneration)) return false;
     const expiresAt = Date.now() + response.data.expires_in * 1000;
     localStorage.setItem(ACCESS_TOKEN_KEY, response.data.access_token);
     localStorage.setItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
@@ -319,6 +336,39 @@ async function ensureValidToken(): Promise<string | null> {
 }
 
 export const authAPI = {
+  async recoverAccountDeletion(accessToken: string, refreshToken: string): Promise<
+    { state: 'revoked' } | { state: 'cancelled'; access_token: string; expires_in: number }
+  > {
+    const response = await sessionRecoveryClient.post('/account/deletion/recover', {
+      access_token: accessToken, refresh_token: refreshToken,
+    });
+    if ((response.data.state !== 'revoked' && response.data.state !== 'cancelled')
+      || (response.data.state === 'cancelled' && (
+        typeof response.data.access_token !== 'string' || !response.data.access_token
+        || !Number.isFinite(response.data.expires_in) || response.data.expires_in <= 0
+      ))) {
+      throw new Error('Invalid deletion recovery response');
+    }
+    return response.data;
+  },
+  async verifySessionForRecovery(token: string): Promise<{ success: boolean; data: User }> {
+    const response = await sessionRecoveryClient.get<{ success: boolean; data: User }>('/benutzer', {
+      headers: { 'X-Session-Token': token },
+    });
+    return response.data;
+  },
+
+  async refreshSessionForRecovery(refreshToken: string): Promise<TokenRefreshResponse> {
+    const response = await sessionRecoveryClient.post<TokenRefreshResponse>('/auth/refresh', {
+      refresh_token: refreshToken,
+    } as TokenRefreshRequest);
+    return response.data;
+  },
+
+  async getValidSessionToken(): Promise<string | null> {
+    return ensureValidToken();
+  },
+
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await apiClient.post<LoginResponse>('/login', credentials);
     return response.data;
@@ -342,6 +392,22 @@ export const authAPI = {
     const response = await apiClient.get<{ success: boolean; data: User }>('/benutzer', {
       headers: { 'X-Session-Token': token },
       signal,
+    });
+    return response.data;
+  },
+
+  async exportAccount(token: string): Promise<Blob> {
+    const response = await apiClient.get<Blob>('/account/export', {
+      headers: { 'X-Session-Token': token },
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  async deleteAccount(token: string): Promise<{ success: boolean; deleted: Record<string, number>; upstream_sph_data_deleted: boolean }> {
+    const response = await apiClient.delete('/account', {
+      headers: { 'X-Session-Token': token },
+      data: { confirmation: 'DELETE' },
     });
     return response.data;
   },
@@ -527,6 +593,44 @@ export const notificationsAPI = {
   },
 };
 
+export const dashboardAPI = {
+  async getNotifications(
+    token: string,
+    refresh = false,
+    sources: DashboardNotificationSource[] = [],
+    showRead = false,
+    signal?: AbortSignal,
+  ): Promise<DashboardNotificationsResponse> {
+    const response = await apiClient.get<DashboardNotificationsResponse>('/dashboard/notifications', {
+      headers: { 'X-Session-Token': token },
+      params: { refresh, sources: sources.join(','), show_read: showRead },
+      signal,
+    });
+    return response.data;
+  },
+
+  async markNotificationsRead(token: string, notificationIds: string[]): Promise<{ success: boolean; updated: number }> {
+    const response = await apiClient.post<{ success: boolean; updated: number }>(
+      '/dashboard/notifications/read',
+      { notification_ids: notificationIds },
+      { headers: { 'X-Session-Token': token } },
+    );
+    return response.data;
+  },
+
+  async markAllNotificationsRead(
+    token: string,
+    sources: DashboardNotificationSource[],
+  ): Promise<{ success: boolean; updated: number }> {
+    const response = await apiClient.post<{ success: boolean; updated: number }>(
+      '/dashboard/notifications/read-all',
+      { sources },
+      { headers: { 'X-Session-Token': token } },
+    );
+    return response.data;
+  },
+};
+
 export const whatsappAPI = {
   async getStatus(token: string, signal?: AbortSignal): Promise<WhatsAppStatusResponse> {
     const response = await apiClient.get<WhatsAppStatusResponse>('/whatsapp/status', {
@@ -592,6 +696,14 @@ export const coursesAPI = {
     const response = await apiClient.get<CourseDetailsResponse>(`/meinunterricht/course/${courseId}`, {
       headers: { 'X-Session-Token': token },
       signal,
+    });
+    return response.data;
+  },
+
+  async downloadFile(token: string, fileHash: string): Promise<Blob> {
+    const response = await apiClient.get<Blob>(`/meinunterricht/file/${fileHash}`, {
+      headers: { 'X-Session-Token': token },
+      responseType: 'blob',
     });
     return response.data;
   },
@@ -1048,6 +1160,7 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     if (error.response?.status === 401 && localStorage.getItem('__demo_mode') !== '1') {
+      if (isAccountDataDeletionInProgress()) return Promise.reject(error);
       // Don't try to refresh if the request was already to /auth/refresh
       const isRefreshRequest = error.config?.url === '/auth/refresh';
       const requestConfig = error.config as (typeof error.config & {
@@ -1058,6 +1171,7 @@ apiClient.interceptors.response.use(
         // Try refreshing the token once
         const refreshTokenValue = getRefreshToken();
         if (refreshTokenValue) {
+          const writeGeneration = captureAccountDataGeneration();
           if (requestConfig) requestConfig._authRetryAttempted = true;
 
           try {
@@ -1065,6 +1179,9 @@ apiClient.interceptors.response.use(
               refresh_token: refreshTokenValue,
             } as TokenRefreshRequest);
 
+            if (!canWriteAccountData(writeGeneration)) {
+              return Promise.reject(error);
+            }
             const expiresAt = Date.now() + refreshResponse.data.expires_in * 1000;
             localStorage.setItem(ACCESS_TOKEN_KEY, refreshResponse.data.access_token);
             localStorage.setItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
@@ -1122,5 +1239,21 @@ export const cacheStatusAPI = {
       throw new Error('Invalid cache status');
     }
     return status as { available: boolean; last_successful_fetch_at: string | null; snapshot_count: number; retention_seconds: number };
+  },
+};
+
+export type FeedbackCategory = 'feature' | 'bug' | 'general';
+
+export const feedbackAPI = {
+  async submit(
+    token: string,
+    payload: { category: FeedbackCategory; title: string; details: string; page: string },
+  ): Promise<{ success: boolean; id: number }> {
+    const response = await apiClient.post<{ success: boolean; id: number }>(
+      '/feedback',
+      payload,
+      { headers: { 'X-Session-Token': token } },
+    );
+    return response.data;
   },
 };

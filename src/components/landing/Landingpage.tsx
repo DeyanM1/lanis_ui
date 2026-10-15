@@ -413,7 +413,7 @@ const Landingpage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#fcfcf9] dark:bg-surface-950 text-[#1a1a1a] dark:text-surface-100 overflow-x-hidden transition-colors duration-300">
       <SEO
-        title="Lanis | Das Schulportal Hessen, neu gedacht"
+        title="Das Schulportal Hessen, neu gedacht"
         description="Lanis ist die modernere, inoffizielle Oberfläche für das Schulportal Hessen: Hausaufgaben direkt im Stundenplan, Push-Benachrichtigungen und Ladezeiten unter 50 Millisekunden."
         path="/"
       />
@@ -425,12 +425,13 @@ const Landingpage: React.FC = () => {
             <AppIcon alt="Lanis" className="w-7 h-7 rounded-lg" />
             <span className="text-sm font-semibold text-[#555] dark:text-surface-300 tracking-tight">Lanis</span>
           </div>
-          <div className="flex items-center gap-5"><Link to="/status" className="text-sm font-medium text-surface-600 dark:text-surface-300">Status</Link><button
-            onClick={() => navigate('/login')}
-            className="px-5 py-2.5 rounded-xl bg-[#1a1a1a] dark:bg-surface-100 hover:bg-[#333] dark:hover:bg-white text-white dark:text-surface-900 text-xs font-semibold transition-all duration-300 active:scale-[0.97]"
-          >
-            Login
-          </button></div>
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => navigate('/login')}
+              className="px-5 py-2.5 rounded-xl bg-[#1a1a1a] dark:bg-surface-100 hover:bg-[#333] dark:hover:bg-white text-white dark:text-surface-900 text-xs font-semibold transition-all duration-300 active:scale-[0.97]">
+              Login
+            </button>
+          </div>
         </nav>
 
         {/* ═══ Hero ═══ */}

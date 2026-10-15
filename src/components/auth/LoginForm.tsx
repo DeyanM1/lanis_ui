@@ -5,8 +5,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { EyeIcon, EyeSlashIcon, SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 import SEO from '../seo/SEO';
 import AppIcon from '../AppIcon';
+import { hasAccountDataDeletionMarker } from '../../utils/accountDataWrites';
 
-import { schoolListAPI } from '../../services/api';
+import { schoolListAPI, API_BASE_URL } from '../../services/api';
 import axios from 'axios';
 import { School, District } from '../../types';
 
@@ -214,6 +215,7 @@ const LoginForm: React.FC = () => {
         title="Anmelden"
         description="Melde dich bei Lanis an — der modernen Benutzeroberfläche für das Schulportal Hessen. Wähle deine Schule aus und logge dich ein."
         path="/login"
+        noindex
       />
       <button
         onClick={cycleTheme}
@@ -329,6 +331,13 @@ const LoginForm: React.FC = () => {
               </div>
             </div>
 
+            {hasAccountDataDeletionMarker() && (
+              <div role="status" className="rounded-xl border border-surface-200 bg-surface-50 px-4 py-3 text-sm text-surface-700 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200">
+                Ein unterbrochener Löschvorgang muss zuerst geprüft werden. Deine gespeicherten Daten bleiben bis zur Klärung geschützt.
+                <button type="button" onClick={() => window.location.reload()} className="mt-2 block font-medium text-primary-600 dark:text-primary-400">Erneut prüfen</button>
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 px-4 py-3 rounded-xl text-sm animate-scale-in">
                 {error}
@@ -337,7 +346,7 @@ const LoginForm: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading || !formData.school_id}
+              disabled={isLoading || !formData.school_id || hasAccountDataDeletionMarker()}
               className="btn btn-primary w-full h-11 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {isLoading ? (
@@ -359,6 +368,14 @@ const LoginForm: React.FC = () => {
             >
               Datenschutzerklärung
             </Link>.
+          </p>
+
+          <p className="text-center whitespace-nowrap w-max mx-auto text-[9px] sm:text-[10px] tracking-tight text-surface-400 dark:text-surface-500 leading-none">
+            Beim Anmelden werden deine Anmeldedaten an{' '}
+            <span className="font-medium">
+              {API_BASE_URL.replace(/^https?:\/\//, '')}
+            </span>{' '}
+            übertragen.
           </p>
         </form>
       </div>
