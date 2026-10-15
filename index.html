@@ -13,8 +13,27 @@
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://lanis.arg-server.de/" />
 
+    <style>
+      /* JavaScript adds this class before the body is parsed. Without JavaScript,
+         the prerendered page remains visible to visitors and crawlers. */
+      #boot-screen { display: none; }
+      html.js-booting { overflow: hidden; }
+      html.js-booting #boot-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: block;
+        background: #fafafa;
+      }
+      html.dark.js-booting #boot-screen { background: #0a0a0a; }
+      html.oled.js-booting #boot-screen { background: #000; }
+    </style>
+
     <!-- Apply the stored appearance before React mounts to avoid a bright flash in OLED mode. -->
     <script>
+      document.documentElement.classList.add('js-booting');
+      // Reveal the static page if the app bundle never starts.
+      window.setTimeout(() => document.documentElement.classList.remove('js-booting'), 15000);
       try {
         const mode = localStorage.getItem('lanis_theme_mode');
         const oled = mode === 'oled' || (!mode && localStorage.getItem('lanis_oled_mode') === 'true');
@@ -24,7 +43,7 @@
           : storedDark === 'true');
         document.documentElement.classList.toggle('dark', dark);
         document.documentElement.classList.toggle('oled', oled);
-        document.documentElement.dataset.theme = localStorage.getItem('lanis_theme_color') || 'cyan';
+        document.documentElement.dataset.theme = localStorage.getItem('lanis_theme_color') || 'ruby';
       } catch (_) {
         // Storage may be unavailable in privacy-restricted contexts; React applies the fallback.
       }
@@ -37,7 +56,9 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Lanis" />
     <meta property="og:locale" content="de_DE" />
-    <meta property="og:image" content="/icon.webp" />
+    <meta property="og:image" content="https://lanis.arg-server.de/opengraph.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:alt" content="Lanis — Das Schulportal Hessen, neu gedacht." />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
 
@@ -45,7 +66,8 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Lanis | Das Schulportal Hessen, neu gedacht" />
     <meta name="twitter:description" content="Hausaufgaben direkt im Stundenplan, Push-Benachrichtigungen und Ladezeiten unter 50 Millisekunden. Die modernere Oberfläche für das Schulportal Hessen." />
-    <meta name="twitter:image" content="/icon.webp" />
+    <meta name="twitter:image" content="https://lanis.arg-server.de/opengraph.png" />
+    <meta name="twitter:image:alt" content="Lanis — Das Schulportal Hessen, neu gedacht." />
 
     <!-- Structured Data / JSON-LD -->
     <script type="application/ld+json">
@@ -72,22 +94,22 @@
     </script>
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/themes/cyan/favicon-32x32.png" data-theme-icon="favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/themes/cyan/favicon-16x16.png" data-theme-icon="favicon-16x16.png" />
-    <link rel="shortcut icon" type="image/png" href="/favicon/themes/cyan/favicon-32x32.png" data-theme-icon="favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/themes/cyan/apple-touch-icon.png" data-theme-icon="apple-touch-icon.png" />
-    <link rel="manifest" href="/favicon/themes/cyan/site.webmanifest" data-theme-manifest />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/themes/ruby/favicon-32x32.png" data-theme-icon="favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/themes/ruby/favicon-16x16.png" data-theme-icon="favicon-16x16.png" />
+    <link rel="shortcut icon" type="image/png" href="/favicon/themes/ruby/favicon-32x32.png" data-theme-icon="favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/themes/ruby/apple-touch-icon.png" data-theme-icon="apple-touch-icon.png" />
+    <link rel="manifest" href="/favicon/themes/ruby/site.webmanifest" data-theme-manifest />
     <script>
       try {
-        const supportedThemes = ['cyan', 'emerald', 'sapphire', 'amethyst', 'ruby', 'amber'];
+        const supportedThemes = ['cyan', 'emerald', 'sapphire', 'amethyst', 'ruby', 'amber', 'coral', 'blush', 'moss'];
         const storedTheme = localStorage.getItem('lanis_theme_color');
-        const theme = supportedThemes.includes(storedTheme) ? storedTheme : 'cyan';
+        const theme = supportedThemes.includes(storedTheme) ? storedTheme : 'ruby';
         document.querySelectorAll('link[data-theme-icon]').forEach((link) => {
           link.href = `/favicon/themes/${theme}/${link.dataset.themeIcon}`;
         });
         document.querySelector('link[data-theme-manifest]').href = `/favicon/themes/${theme}/site.webmanifest`;
       } catch (_) {
-        // Keep the cyan fallback when storage is unavailable.
+        // Keep the ruby fallback when storage is unavailable.
       }
     </script>
 
@@ -102,6 +124,7 @@
 
   </head>
   <body>
+    <div id="boot-screen" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -4,7 +4,7 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import { BasePathProvider } from '../../contexts/BasePathContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import DemoBar from '../demo/DemoBar';
-import { appsAPI } from '../../services/api';
+import { appsAPI, feedbackAPI, type FeedbackCategory } from '../../services/api';
 import axios from 'axios';
 import {
   HomeIcon,
@@ -24,12 +24,15 @@ import {
   MagnifyingGlassIcon,
   MinusIcon,
   VideoCameraIcon,
+  ChatBubbleBottomCenterTextIcon,
+  XMarkIcon as CloseIcon,
 } from '@heroicons/react/24/outline';
 import { Link, useLocation } from 'react-router-dom';
 import GlobalSearch from '../search/GlobalSearch';
-import InstallPrompt from '../pwa/InstallPrompt';
 import OutageNotice from '../status/OutageNotice';
+import { PwaInstallProvider } from '../../contexts/PwaInstallContext';
 import { getModuleAvailability, readModulesCache, writeModulesCache } from '../../utils/moduleCache';
+import { captureAccountDataGeneration } from '../../utils/accountDataWrites';
 import type { CachedModule } from '../../utils/moduleCache';
 import { getThemeIconUrl, getThemeManifestUrl, THEME_COLOR_HEX } from '../../utils/themeAssets';
 import AppIcon from '../AppIcon';
@@ -60,6 +63,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   ));
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [showLogoutConfirmation, setShowLogoutConfirmation] = React.useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = React.useState(false);
+  const feedbackOpenerRef = React.useRef<HTMLButtonElement | null>(null);
+  const closeFeedbackDialog = React.useCallback(() => setIsFeedbackOpen(false), []);
   const [hasNativeDateispeicher, setHasNativeDateispeicher] = React.useState(false);
   const [hasNativeSubstitutionPlan, setHasNativeSubstitutionPlan] = React.useState(false);
   const [hasDsbModule, setHasDsbModule] = React.useState(false);
@@ -98,6 +104,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
 
   React.useEffect(() => {
     if (!token) return;
+    const writeGeneration = captureAccountDataGeneration();
     const abortController = new AbortController();
     const applyModuleAvailability = (modules: CachedModule[]) => {
       const availability = getModuleAvailability(modules);
@@ -116,7 +123,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         if (abortController.signal.aborted) return;
         if (response.success) {
           applyModuleAvailability(response.modules);
-          writeModulesCache(user, response.modules);
+          writeModulesCache(user, response.modules, writeGeneration);
         }
       } catch (error) {
         if (axios.isCancel(error)) return;
@@ -130,6 +137,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (isFeedbackOpen) return;
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'f')) {
         e.preventDefault();
         setIsSearchOpen(prev => !prev);
@@ -137,7 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [isFeedbackOpen]);
 
   const navigationItems = {
     search: { name: 'Suche', href: `${basePath}/search`, icon: MagnifyingGlassIcon },
@@ -177,29 +185,21 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
   const isDemo = basePath === '/demo';
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-surface-50 dark:bg-surface-950">
+    <PwaInstallProvider automaticPromotion={!isDemo}>
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-surface-50 dark:bg-surface-950">
       {isDemo && <DemoBar />}
       {isSidebarOpen && (
         <div className={'fixed inset-x-0 bottom-0 flex z-40 md:hidden ' + (isDemo ? 'top-10' : 'inset-0')}>
           <div className={'fixed inset-x-0 bottom-0 bg-surface-900/40 backdrop-blur-sm ' + (isDemo ? 'top-10' : 'inset-0')} onClick={() => setIsSidebarOpen(false)} />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-surface-900 shadow-soft-lg animate-drawer-in">
-            <div className="absolute top-0 right-0 -mr-12 pt-4">
-              <button
-                type="button"
-                className="flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-white/50"
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <XMarkIcon className="h-6 w-6 text-white" />
-              </button>
-            </div>
-            <SidebarContent navigation={navigation} />
+          <div className="relative flex flex-1 flex-col max-w-xs w-full bg-white dark:bg-surface-900 shadow-soft-lg animate-drawer-in">
+            <SidebarContent navigation={navigation} showCloseButton />
           </div>
         </div>
       )}
 
       <div className={'hidden md:flex md:flex-col md:fixed transition-[width] duration-300 ease-out ' + (isSidebarCollapsed ? 'md:w-[60px]' : 'md:w-64') + ' ' + (isDemo ? 'md:top-10 md:bottom-0' : 'md:inset-y-0')}>
         <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-surface-900 border-r border-surface-100 dark:border-surface-800">
-          <SidebarContent navigation={navigation} isCollapsed={isSidebarCollapsed} />
+          <SidebarContent navigation={navigation} isCollapsed={isSidebarCollapsed} canCollapse />
         </div>
       </div>
 
@@ -213,11 +213,11 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         </button>
         <Link
           to={`${basePath}/dashboard`}
-          className="flex items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          className="flex items-center gap-2 rounded-lg focus:outline-none"
           aria-label="Zum Dashboard"
         >
           <AppIcon alt="Schulportal" className="h-7 w-7 rounded-lg" />
-          <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">Schulportal</span>
+          <span className="text-sm font-semibold text-surface-900 dark:text-surface-100">Lanis</span>
         </Link>
         <button
           onClick={() => setIsSearchOpen(true)}
@@ -244,24 +244,36 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
         hasDsbModule={hasDsbModule}
         hasVideokonferenzModule={hasVideokonferenzModule}
       />
-      <pwa-install
-        ref={pwaRef}
-        manifest-url={manifestUrl}
-        name="Lanis"
-        icon={appIconUrl}
-        description="Moderne Benutzeroberfläche für das Schulportal Hessen"
-        install-description="Direkt vom Homescreen öffnen — wie eine echte App."
-      ></pwa-install>
-      <InstallPrompt />
-    </div>
+      {isFeedbackOpen && <FeedbackDialog token={token || ''} onClose={closeFeedbackDialog} openerRef={feedbackOpenerRef} />}
+      {!isDemo && (
+        <pwa-install
+          ref={pwaRef}
+          manifest-url={manifestUrl}
+          manual-apple="true"
+          manual-chrome="true"
+          disable-chrome="true"
+          disable-android-fallback="true"
+          use-local-storage="true"
+          name="Lanis"
+          icon={appIconUrl}
+          description="Moderne Benutzeroberfläche für das Schulportal Hessen"
+          install-description="Direkt vom Homescreen öffnen — wie eine echte App."
+        ></pwa-install>
+      )}
+      </div>
+    </PwaInstallProvider>
   );
 
   function SidebarContent({
     navigation,
     isCollapsed = false,
+    canCollapse = false,
+    showCloseButton = false,
   }: {
     navigation: SidebarNavigationItem[];
     isCollapsed?: boolean;
+    canCollapse?: boolean;
+    showCloseButton?: boolean;
   }) {
     return (
       <>
@@ -301,7 +313,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
               </svg>
             )}
           </Link>
-          {!isCollapsed && (
+          {canCollapse && !isCollapsed && (
             <button
               type="button"
               onClick={() => setIsSidebarCollapsed(true)}
@@ -323,6 +335,16 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
                 <path d="M19 12H9" />
                 <path d="m13 8-4 4 4 4" />
               </svg>
+            </button>
+          )}
+          {showCloseButton && (
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(false)}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-surface-500 transition-colors hover:bg-surface-100 hover:text-surface-700 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200"
+              aria-label="Menü schließen"
+            >
+              <XMarkIcon className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -379,6 +401,25 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
             })}
           </nav>
           <div className="mt-auto pt-4 border-t border-surface-100 dark:border-surface-800">
+            {!isDemo && preferences.sidebar.show_feedback_button && (
+              <button
+                type="button"
+                data-feedback-trigger=""
+                onClick={(event) => {
+                  feedbackOpenerRef.current = event.currentTarget;
+                  setIsSearchOpen(false);
+                  setIsFeedbackOpen(true);
+                }}
+                className={`nav-link mb-1 text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 ${isCollapsed ? 'mx-auto h-10 w-10 justify-center gap-0 px-0' : 'w-full'}`}
+                title={isCollapsed ? 'Feedback geben' : undefined}
+                aria-label="Feedback geben"
+              >
+                <ChatBubbleBottomCenterTextIcon className="nav-link-icon text-surface-400 dark:text-surface-500" />
+                <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${isCollapsed ? 'max-w-0 opacity-0' : 'max-w-32 opacity-100'}`}>
+                  Feedback geben
+                </span>
+              </button>
+            )}
             <div className="relative">
               {showLogoutConfirmation && (
                 <div
@@ -425,5 +466,163 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     );
   }
 };
+
+function FeedbackDialog({ token, onClose, openerRef }: {
+  token: string;
+  onClose: () => void;
+  openerRef: { current: HTMLButtonElement | null };
+}) {
+  const dialogRef = React.useRef<HTMLElement>(null);
+  const [category, setCategory] = React.useState<FeedbackCategory>('feature');
+  const [summary, setSummary] = React.useState('');
+  const [details, setDetails] = React.useState('');
+  const [message, setMessage] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isSubmittingRef = React.useRef(false);
+  const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const confirmationHeadingRef = React.useRef<HTMLHeadingElement>(null);
+
+  React.useEffect(() => {
+    if (isSubmitted) confirmationHeadingRef.current?.focus();
+  }, [isSubmitted]);
+
+  React.useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const focusableSelector = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+    dialog?.querySelector<HTMLElement>(focusableSelector)?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (isSubmittingRef.current) return;
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      const opener = openerRef.current;
+      const visibleOpener = opener?.isConnected && opener.getClientRects().length > 0
+        ? opener
+        : Array.from(document.querySelectorAll<HTMLButtonElement>('[data-feedback-trigger]'))
+          .find(trigger => trigger.getClientRects().length > 0);
+      if (visibleOpener) visibleOpener.focus();
+      else if (previousFocus?.isConnected && previousFocus.getClientRects().length > 0) previousFocus.focus();
+      openerRef.current = null;
+    };
+  }, [onClose]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!summary.trim() || !details.trim()) {
+      setMessage('Bitte gib einen kurzen Titel und eine Beschreibung ein.');
+      return;
+    }
+    if (!token) {
+      setMessage('Melde dich an, um Feedback abzusenden.');
+      return;
+    }
+    setIsSubmitting(true);
+    isSubmittingRef.current = true;
+    setMessage('');
+    try {
+      const response = await feedbackAPI.submit(token, {
+        category,
+        title: summary.trim(),
+        details: details.trim(),
+        page: window.location.pathname,
+      });
+      if (!response.success) {
+        setMessage('Feedback konnte nicht gesendet werden. Bitte versuche es erneut.');
+        return;
+      }
+      setIsSubmitted(true);
+    } catch (submitError) {
+      setMessage(axios.isAxiosError(submitError) && typeof submitError.response?.data?.detail === 'string'
+        ? submitError.response.data.detail
+        : 'Feedback konnte nicht gesendet werden. Bitte versuche es erneut.');
+    } finally {
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-surface-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onMouseDown={(event) => { if (!isSubmitting && event.target === event.currentTarget) onClose(); }}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="feedback-title"
+        tabIndex={-1}
+        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-surface-200 bg-white p-5 shadow-soft-lg dark:border-surface-700 dark:bg-surface-900 sm:max-w-lg sm:rounded-2xl sm:p-6"
+      >
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 id="feedback-title" className="text-lg font-semibold text-surface-900 dark:text-surface-100">Feedback geben</h2>
+            <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Was können wir verbessern? Ideen und Fehlermeldungen helfen uns weiter.</p>
+          </div>
+          <button type="button" onClick={onClose} disabled={isSubmitting} aria-label="Schließen" className="rounded-lg p-2 text-surface-400 hover:bg-surface-100 hover:text-surface-700 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-surface-800 dark:hover:text-surface-200">
+            <CloseIcon className="h-5 w-5" />
+          </button>
+        </div>
+        {isSubmitted ? (
+          <div className="py-8 text-center" role="status" aria-live="polite">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <ChatBubbleBottomCenterTextIcon className="h-6 w-6" />
+            </span>
+            <h3 ref={confirmationHeadingRef} tabIndex={-1} className="mt-4 text-base font-semibold text-surface-900 dark:text-surface-100">Danke für dein Feedback!</h3>
+            <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Dein Beitrag ist bei uns angekommen.</p>
+            <button type="button" onClick={onClose} className="btn mt-5">Fertig</button>
+          </div>
+        ) : <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
+          <fieldset disabled={isSubmitting} className="m-0 min-w-0 space-y-4 border-0 p-0">
+          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+            Worum geht es?
+            <select value={category} onChange={(event) => setCategory(event.target.value as FeedbackCategory)} className="input mt-1.5 w-full">
+              <option value="feature">Idee für eine Funktion</option>
+              <option value="bug">Fehler melden</option>
+              <option value="general">Allgemeines Feedback</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+            Kurzer Titel
+            <input value={summary} onChange={(event) => setSummary(event.target.value)} maxLength={120} required placeholder="Zum Beispiel: Stundenplan lässt sich nicht öffnen" className="input mt-1.5 w-full" />
+          </label>
+          <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+            Beschreibung
+            <textarea value={details} onChange={(event) => setDetails(event.target.value)} required rows={5} maxLength={5000} placeholder="Beschreibe deine Idee oder was passiert ist …" className="input mt-1.5 w-full resize-y" />
+          </label>
+          {message && <p role="status" className="text-sm text-surface-600 dark:text-surface-300">{message}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} disabled={isSubmitting} className="btn btn-secondary disabled:cursor-not-allowed disabled:opacity-60">Abbrechen</button>
+            <button type="submit" disabled={isSubmitting} className="btn disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? 'Wird gesendet…' : 'Absenden'}</button>
+          </div>
+          </fieldset>
+        </form>}
+      </section>
+    </div>
+  );
+}
 
 export default Layout;

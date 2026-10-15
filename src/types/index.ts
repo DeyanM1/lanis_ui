@@ -65,6 +65,7 @@ export interface LoginResponse {
   school_id: string;
   username: string;
   encryption_ready: boolean;
+  is_first_school_user?: boolean;
   expires_in: number;
 }
 
@@ -77,14 +78,28 @@ export interface TokenRefreshResponse {
   expires_in: number;
 }
 
+export interface AccountExport {
+  schema_version: number;
+  generated_at: string;
+  account: {
+    school_id: string | null;
+    username: string | null;
+    credential_stored: boolean;
+    credential_created_at: string | null;
+    credential_expires_at: string | null;
+  };
+  [key: string]: unknown;
+}
+
 export interface User {
   [key: string]: string;
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark' | 'oled';
-export type ThemeColor = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'amber' | 'cyan';
+export type ThemeColor = 'emerald' | 'sapphire' | 'amethyst' | 'ruby' | 'amber' | 'cyan' | 'coral' | 'blush' | 'moss';
 export type DashboardViewMode = 'grid' | 'list';
 export type TimetableViewMode = 'rolling' | 'week';
+export type TimetableLayoutMode = 'cards' | 'compact';
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'skipped';
 export type OnboardingStep = 'welcome' | 'appearance' | 'dashboard' | 'timetable' | 'homework' | 'guide' | 'complete';
 export type CompletedHomeworkDisplay = 'orange' | 'green' | 'hidden';
@@ -97,16 +112,25 @@ export interface UserPreferences {
   sidebar: {
     order: string[];
     hidden_items: string[];
+    show_feedback_button: boolean;
   };
   dashboard: {
     pinned_modules: string[];
     hidden_modules: string[];
     view_mode: DashboardViewMode;
+    notifications_enabled: boolean;
+    notification_messages_enabled: boolean;
+    notification_native_enabled: boolean;
+    notification_dsb_enabled: boolean;
+    notification_show_read: boolean;
+    notification_limit: 5 | 10 | 20 | 50;
   };
   timetable: {
     view_mode: TimetableViewMode;
+    layout_mode: TimetableLayoutMode;
     show_homework: boolean;
     show_exams: boolean;
+    class_colors: Record<string, string>;
   };
   homework: {
     completed_display: CompletedHomeworkDisplay;
@@ -365,6 +389,31 @@ export interface NotificationPreferences {
   show_preview: boolean;
 }
 
+export type DashboardNotificationSource = 'messages' | 'native' | 'dsb';
+
+export interface DashboardNotification {
+  id: string;
+  source: DashboardNotificationSource;
+  title: string;
+  detail: string;
+  meta?: string;
+  occurred_at?: string;
+  path: string;
+  created_at: string;
+  read: boolean;
+  read_at: string | null;
+}
+
+export interface DashboardNotificationsResponse {
+  success: boolean;
+  enabled: boolean;
+  notifications: DashboardNotification[];
+  unread_count: number;
+  source_counts: Record<DashboardNotificationSource, number>;
+  unread_source_counts: Record<DashboardNotificationSource, number>;
+  errors: Partial<Record<DashboardNotificationSource, string>>;
+}
+
 export interface NotificationConfigResponse {
   success: boolean;
   configured: boolean;
@@ -557,7 +606,7 @@ export interface AuthContextType {
   token: string | null;
   user: User | null;
   login: (credentials: LoginRequest) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: (shouldClearStorage?: () => boolean) => Promise<void>;
   refreshToken: () => Promise<boolean>;
 }
 
