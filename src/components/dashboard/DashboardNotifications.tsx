@@ -162,8 +162,6 @@ const DashboardNotifications: React.FC = () => {
 
   if (!dashboardPreferences.notifications_enabled) return null;
 
-  if (loading && notifications.length === 0) return null;
-
   if (visibleNotifications.length === 0 && errors.length === 0) return null;
 
   return (

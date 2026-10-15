@@ -65,6 +65,7 @@ export interface LoginResponse {
   school_id: string;
   username: string;
   encryption_ready: boolean;
+  is_first_school_user?: boolean;
   expires_in: number;
 }
 
@@ -75,6 +76,19 @@ export interface TokenRefreshRequest {
 export interface TokenRefreshResponse {
   access_token: string;
   expires_in: number;
+}
+
+export interface AccountExport {
+  schema_version: number;
+  generated_at: string;
+  account: {
+    school_id: string | null;
+    username: string | null;
+    credential_stored: boolean;
+    credential_created_at: string | null;
+    credential_expires_at: string | null;
+  };
+  [key: string]: unknown;
 }
 
 export interface User {
@@ -98,6 +112,7 @@ export interface UserPreferences {
   sidebar: {
     order: string[];
     hidden_items: string[];
+    show_feedback_button: boolean;
   };
   dashboard: {
     pinned_modules: string[];
@@ -592,7 +607,7 @@ export interface AuthContextType {
   token: string | null;
   user: User | null;
   login: (credentials: LoginRequest) => Promise<boolean>;
-  logout: () => Promise<void>;
+  logout: (shouldClearStorage?: () => boolean) => Promise<void>;
   refreshToken: () => Promise<boolean>;
 }
 
