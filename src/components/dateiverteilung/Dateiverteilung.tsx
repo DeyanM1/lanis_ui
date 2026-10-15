@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   ArrowDownTrayIcon,
@@ -31,6 +31,7 @@ function sourceInitial(source: string): string {
 
 const Dateiverteilung: React.FC = () => {
   const { token } = useAuth();
+  const sourceIdPrefix = useId();
   const [distributions, setDistributions] = useState<DateiverteilungDistribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,13 +57,14 @@ const Dateiverteilung: React.FC = () => {
 
     dateiverteilungAPI.getOverview(token, refresh, controller.signal)
       .then(response => {
+        if (controller.signal.aborted) return;
         if (!response.success) {
           throw new Error(response.error || 'Die Dateiverteilung konnte nicht geladen werden.');
         }
         setDistributions(Array.isArray(response.distributions) ? response.distributions : []);
       })
       .catch(cause => {
-        if (axios.isCancel(cause)) return;
+        if (controller.signal.aborted || axios.isCancel(cause)) return;
         setError(cause instanceof Error ? cause.message : 'Die Dateiverteilung konnte nicht geladen werden.');
       })
       .finally(() => {
@@ -97,11 +99,12 @@ const Dateiverteilung: React.FC = () => {
     setDownloading(key);
     setError('');
     try {
-      const blob = await dateiverteilungAPI.downloadFile(token, file.download_url, controller.signal);
-      const objectUrl = URL.createObjectURL(blob);
+      const download = await dateiverteilungAPI.downloadFile(token, file.download_url, controller.signal);
+      if (controller.signal.aborted) return;
+      const objectUrl = URL.createObjectURL(download.blob);
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = file.name;
+      link.download = download.filename || file.name;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -208,8 +211,8 @@ const Dateiverteilung: React.FC = () => {
         ) : (
           <div className="space-y-8">
             <p className="sr-only">{fileCount} Dateien in {distributions.length} Verteilungen</p>
-            {visibleGroups.map(([source, items]) => (
-              <section key={source} aria-labelledby={`source-${source}`} className="grid gap-3 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-5">
+            {visibleGroups.map(([source, items], sourceIndex) => (
+              <section key={source} aria-labelledby={`${sourceIdPrefix}-${sourceIndex}`} className="grid gap-3 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-5">
                 <div className="md:sticky md:top-6 md:self-start">
                   <div className="flex items-center gap-2.5 md:block">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-800 dark:bg-primary-950 dark:text-primary-200">
@@ -217,7 +220,7 @@ const Dateiverteilung: React.FC = () => {
                     </div>
                     <div className="min-w-0 md:mt-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-400">Herkunft</p>
-                      <h2 id={`source-${source}`} className="truncate text-sm font-semibold text-surface-800 dark:text-surface-200 md:whitespace-normal">{source}</h2>
+                      <h2 id={`${sourceIdPrefix}-${sourceIndex}`} className="truncate text-sm font-semibold text-surface-800 dark:text-surface-200 md:whitespace-normal">{source}</h2>
                     </div>
                   </div>
                 </div>
