@@ -146,21 +146,38 @@ const Videokonferenz: React.FC = () => {
   useEffect(() => {
     if (!token) return;
     const controller = new AbortController();
+    let inFlight = false;
 
     const loadRooms = async (manual = false) => {
+      if (inFlight || controller.signal.aborted) return;
+      inFlight = true;
       if (manual) setRefreshing(true);
       else setLoading(true);
       try {
         const response = await videokonferenzAPI.getRooms(token, manual, controller.signal);
+        if (controller.signal.aborted) return;
         if (!response.success) throw new Error(response.error || 'Videoräume konnten nicht geladen werden.');
         setOverview(response);
         setLastChecked(new Date());
         setError('');
       } catch (loadError) {
         if (!controller.signal.aborted && !axios.isCancel(loadError)) {
+          setOverview(previous => previous ? {
+            ...previous,
+            status_live: false,
+            open_count: 0,
+            rooms: previous.rooms.map(room => ({
+              ...room,
+              status: 'unknown',
+              status_label: 'Aktueller Status nicht verfügbar',
+              can_join: false,
+              join_url: null,
+            })),
+          } : null);
           setError(loadError instanceof Error ? loadError.message : 'Videoräume konnten nicht geladen werden.');
         }
       } finally {
+        inFlight = false;
         if (!controller.signal.aborted) {
           setLoading(false);
           setRefreshing(false);

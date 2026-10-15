@@ -122,7 +122,8 @@ const Dashboard: React.FC = () => {
       navigate(`${basePath}/calendar`);
       return;
     }
-    if (module.url.toLowerCase().includes('/videokonferenz.php') ||
+    const moduleLinks = `${module.url} ${module.direct_url || ''}`.toLowerCase();
+    if (moduleLinks.includes('/videokonferenz.php') ||
         module.name.toLowerCase().includes('videokonferenz')) {
       navigate(`${basePath}/videokonferenz`);
       return;
@@ -142,7 +143,6 @@ const Dashboard: React.FC = () => {
       navigate(`${basePath}/wahlen`);
       return;
     }
-    const moduleLinks = `${module.url} ${module.direct_url || ''}`.toLowerCase();
     if (moduleLinks.includes('/dateispeicher.php') || module.name.toLowerCase().includes('dateispeicher')) {
       navigate(`${basePath}/dateispeicher`);
       return;
