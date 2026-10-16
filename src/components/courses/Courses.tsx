@@ -8,7 +8,6 @@ import axios from 'axios';
 import SEO from '../seo/SEO';
 import { 
   CourseEntry,
-  CoursesResponse,
   CourseDetailsResponse,
   CourseDetails,
   CourseMark,
@@ -42,6 +41,7 @@ import { de } from 'date-fns/locale';
 import clsx from 'clsx';
 import { isDemoRoute, notifyDemoCacheWrite } from '../../utils/demoMode';
 import { canWriteAccountData, captureAccountDataGeneration } from '../../utils/accountDataWrites';
+import { normalizeCourseList } from '../../utils/courseNormalization';
 
 type ViewMode = 'overview' | 'course-detail' | 'weekly' | 'submissions' | 'entry-detail';
 type CourseDetailTab = 'history' | 'performance' | 'exams';
@@ -358,9 +358,10 @@ const Courses: React.FC = () => {
       const response = await coursesAPI.getCourses(token, signal);
       if (signal?.aborted) return;
       if (response.success) {
-        setCourses(response.entries);
+        const courseList = normalizeCourseList(response);
+        setCourses(courseList);
         if (canWriteAccountData(writeGeneration)) {
-          const cachedCourses = JSON.stringify(response.entries);
+          const cachedCourses = JSON.stringify(courseList);
           notifyDemoCacheWrite('courses_cache', cachedCourses);
           localStorage.setItem('courses_cache', cachedCourses);
         }
@@ -393,13 +394,14 @@ const Courses: React.FC = () => {
           const overview = await coursesAPI.getCourses(token, signal);
           if (signal?.aborted) return;
           if (overview.success) {
-            setCourses(overview.entries);
+            const courseList = normalizeCourseList(overview);
+            setCourses(courseList);
             if (canWriteAccountData(writeGeneration)) {
-              const cachedCourses = JSON.stringify(overview.entries);
+              const cachedCourses = JSON.stringify(courseList);
               notifyDemoCacheWrite('courses_cache', cachedCourses);
               localStorage.setItem('courses_cache', cachedCourses);
             }
-            const matchingCourse = overview.entries.find(course => course.book_id === courseId);
+            const matchingCourse = courseList.find(course => course.book_id === courseId);
             if (matchingCourse?.name?.trim()) {
               resolvedCourse = { ...response, course_name: matchingCourse.name.trim() };
             }

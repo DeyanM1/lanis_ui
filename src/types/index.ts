@@ -473,12 +473,21 @@ export interface CourseEntry {
   datum: string;
   homework: string;
   homework_done: boolean;
+  search_text?: string;
 }
 
 export interface CoursesResponse {
   success: boolean;
   entries: CourseEntry[];
   entry_count: number;
+  courses?: Array<{
+    book_id: string;
+    name?: string;
+    course_link?: string;
+    teacher_full_name?: string;
+    teacher_short?: string;
+  }>;
+  course_count?: number;
 }
 
 export interface AttendanceCourse {
