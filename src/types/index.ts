@@ -130,6 +130,7 @@ export interface UserPreferences {
   timetable: {
     view_mode: TimetableViewMode;
     layout_mode: TimetableLayoutMode;
+    show_substitutions: boolean;
     show_homework: boolean;
     show_exams: boolean;
     class_colors: Record<string, string>;
