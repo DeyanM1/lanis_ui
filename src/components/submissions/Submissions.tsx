@@ -239,9 +239,15 @@ const SubmissionDetailView: React.FC<{
         setError(response.error || 'Die Dateien konnten nicht hochgeladen werden.');
       } else {
         setUploadStatuses(response.files || []);
-        const succeeded = new Set((response.files || [])
-          .filter(file => file.status === 'erfolgreich').map(file => file.name));
-        setSelectedFiles(response.all_succeeded ? [] : selectedFiles.filter(file => !succeeded.has(file.name)));
+        const statusesByName = new Map<string, SubmissionUploadStatus[]>();
+        for (const status of response.files || []) {
+          const statuses = statusesByName.get(status.name) || [];
+          statuses.push(status);
+          statusesByName.set(status.name, statuses);
+        }
+        setSelectedFiles(response.all_succeeded ? [] : selectedFiles.filter(
+          file => statusesByName.get(file.name)?.shift()?.status !== 'erfolgreich',
+        ));
         if (inputRef.current) inputRef.current.value = '';
         if (mountedRef.current) await onRefresh();
       }
