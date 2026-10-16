@@ -118,6 +118,8 @@ export interface UserPreferences {
     pinned_modules: string[];
     hidden_modules: string[];
     view_mode: DashboardViewMode;
+    show_search: boolean;
+    show_subtitle: boolean;
     notifications_enabled: boolean;
     notification_messages_enabled: boolean;
     notification_native_enabled: boolean;
@@ -128,6 +130,7 @@ export interface UserPreferences {
   timetable: {
     view_mode: TimetableViewMode;
     layout_mode: TimetableLayoutMode;
+    show_substitutions: boolean;
     show_homework: boolean;
     show_exams: boolean;
     class_colors: Record<string, string>;
