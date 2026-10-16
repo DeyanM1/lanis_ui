@@ -767,7 +767,9 @@ export function getMockResponse(url: string, method: string, config: any): { dat
   }
   if (u === '/meinunterricht/submissions/upload' && method === 'post') {
     const uploadId = mockFormValue(config?.data, 'upload_id');
-    const summary = mockSubmissions.find(item => `upload-${item.id}` === uploadId) || mockSubmissions[0];
+    const summary = mockSubmissions.find(item => `upload-${item.id}` === uploadId);
+    if (!summary) return { status: 404, data: { success: false, error: 'Abgabe nicht gefunden.' } };
+    if (summary.status !== 'open') return { status: 200, data: { success: false, error: 'Die Abgabe ist geschlossen.' } };
     const files = getMockSubmissionFiles(summary);
     const names = mockUploadedNames(config?.data);
     const uploadedNames = names.length > 0 ? names : ['demo-upload.pdf'];
@@ -782,7 +784,9 @@ export function getMockResponse(url: string, method: string, config: any): { dat
   }
   if (u === '/meinunterricht/submissions/file' && method === 'delete') {
     const uploadId = mockFormValue(config?.data, 'upload_id');
-    const summary = mockSubmissions.find(item => `upload-${item.id}` === uploadId) || mockSubmissions[0];
+    const summary = mockSubmissions.find(item => `upload-${item.id}` === uploadId);
+    if (!summary) return { status: 404, data: { success: false, error: 'Abgabe nicht gefunden.' } };
+    if (summary.status !== 'open') return { status: 200, data: { success: false, error: 'Die Abgabe ist geschlossen.' } };
     const files = getMockSubmissionFiles(summary);
     const fileIndex = mockFormValue(config?.data, 'file_index');
     const index = files.findIndex(file => file.index === fileIndex);
@@ -793,7 +797,8 @@ export function getMockResponse(url: string, method: string, config: any): { dat
   }
   if (u.startsWith('/meinunterricht/submissions/') && method === 'get') {
     const ref = u.split('/').pop() || 'demo-s1';
-    const summary = mockSubmissions.find(item => item.detail_ref === ref) || mockSubmissions[0];
+    const summary = mockSubmissions.find(item => item.detail_ref === ref);
+    if (!summary) return { status: 404, data: { success: false, error: 'Abgabe nicht gefunden.' } };
     const ownFiles = getMockSubmissionFiles(summary);
     return { status: 200, data: { success: true, submission: {
       ...summary,
@@ -810,7 +815,7 @@ export function getMockResponse(url: string, method: string, config: any): { dat
       own_files: ownFiles,
       public_files: [{ name: 'Hinweise.pdf', index: '99', time: null, comment: null, person: 'Frau Vogel', download_ref: 'demo-public-file', public: true }],
       can_upload: summary.status === 'open',
-      can_delete: ownFiles.length > 0,
+      can_delete: summary.status === 'open' && ownFiles.length > 0,
     } } };
   }
   if (u === '/meinunterricht/submissions' && method === 'get') { return { status: 200, data: { success: true, submissions: mockSubmissions } }; }

@@ -655,18 +655,19 @@ export const coursesAPI = {
     return response.data;
   },
 
-  async getSubmissions(token: string, signal?: AbortSignal): Promise<SubmissionsResponse> {
+  async getSubmissions(token: string, signal?: AbortSignal, refresh = false): Promise<SubmissionsResponse> {
     const response = await apiClient.get<SubmissionsResponse>('/meinunterricht/submissions', {
       headers: { 'X-Session-Token': token },
+      params: refresh ? { refresh: true } : undefined,
       signal,
     });
     return response.data;
   },
 
-  async getSubmission(token: string, detailRef: string, signal?: AbortSignal): Promise<SubmissionDetailResponse> {
+  async getSubmission(token: string, detailRef: string, signal?: AbortSignal, refresh = false): Promise<SubmissionDetailResponse> {
     const response = await apiClient.get<SubmissionDetailResponse>(
       `/meinunterricht/submissions/${encodeURIComponent(detailRef)}`,
-      { headers: { 'X-Session-Token': token }, signal },
+      { headers: { 'X-Session-Token': token }, signal, params: refresh ? { refresh: true } : undefined },
     );
     return response.data;
   },
