@@ -26,7 +26,7 @@ function browser(overrides = {}) {
     async registerSubscription(token, payload, signal) {
       assert.equal(signal, controller.signal);
       calls.registered.push({ token, payload });
-      return { success: true };
+      return { success: state.registrationAccepted !== false };
     },
   };
   const context = {
@@ -65,6 +65,15 @@ test('server signing key rotation renews an already opted-in browser', async () 
   assert.equal(b.calls.unsubscribed, 1);
   assert.equal(b.calls.subscribed, 1);
   assert.equal(b.calls.registered.length, 1);
+});
+
+test('a normal server rejection is unsuccessful and preserves the subscription for retry', async () => {
+  const b = browser({ registrationAccepted: false });
+  assert.equal(await b.repair(), false);
+  assert.equal(b.calls.unsubscribed, 0);
+  b.state.registrationAccepted = true;
+  assert.equal(await b.repair(), true);
+  assert.equal(b.calls.registered.length, 2);
 });
 
 test('disabled accounts, unsupported permission, and new devices are never opted in automatically', async () => {
@@ -146,7 +155,7 @@ function runtime(options = {}) {
       return { async repairBrowserPushRegistration(...args) {
         calls.push(args);
         if (options.fail) throw new Error('backend restarting');
-        return true;
+        return options.accepted !== false;
       } };
     },
   };
@@ -185,6 +194,19 @@ test('a server restart retries after one minute and offline/hidden tabs wait', a
   assert.equal(r.calls.length, 1);
   r.context.document.visibilityState = 'visible';
   await r.events.get('online')();
+  assert.equal(r.calls.length, 2);
+  r.cleanup();
+});
+
+test('a resolved registration rejection uses the one-minute retry instead of the success cadence', async () => {
+  const r = runtime({ accepted: false });
+  await new Promise(setImmediate);
+  assert.equal(r.calls.length, 1);
+  r.advance(59_000);
+  await r.tick();
+  assert.equal(r.calls.length, 1);
+  r.advance(1_000);
+  await r.tick();
   assert.equal(r.calls.length, 2);
   r.cleanup();
 });
