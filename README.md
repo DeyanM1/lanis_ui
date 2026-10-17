@@ -76,10 +76,10 @@ node scripts/test-timetable-refresh.cjs
 The status page has a Puppeteer smoke check. With the development server already running:
 
 ```sh
-STATUS_UI_URL=http://localhost:3000 node scripts/status-smoke.mjs
+CHROME_BIN=/path/to/chrome STATUS_UI_URL=http://localhost:3000 node scripts/status-smoke.mjs
 ```
 
-It checks mobile and desktop layouts and simulated service states, and writes screenshots to `/tmp/lanis-status-*.png`. It requires a usable Chrome installation; set `CHROME_BIN` to an executable path if needed.
+It checks mobile and desktop layouts and simulated service states, and writes screenshots to `/tmp/lanis-status-*.png`. It uses `puppeteer-core` with your installed Chrome; `CHROME_BIN` is required. This manual check is separate from the build and CI, which do not install or launch a browser.
 
 There is no `npm test` script. An `npm run lint` script exists, but ESLint and its configuration are not included in this checkout, so it is not currently a ready-to-run validation step.
 
@@ -92,17 +92,22 @@ npm run build
 npm run preview
 ```
 
-The build runs TypeScript checking and Vite, then npm automatically runs `postbuild`. That step uses Puppeteer to prerender `/` and `/status` into `dist/`, temporarily serving the build on port **5179**.
+The build runs TypeScript checking and Vite, then npm automatically runs `postbuild`.
+That step renders the actual `/` and `/status` React components directly into
+`dist/` using React's server renderer. Vite loads the TSX in middleware mode;
+there is no HTTP listener, Chrome installation, browser automation, fixed delay,
+or request to the live backend.
 
-- If Chrome or its runtime libraries are unavailable, prerendering normally logs a warning and skips that step.
-- Set `PRERENDER_STRICT=1` to fail on an unavailable browser instead.
-- Set `SKIP_PRERENDER=1` to explicitly skip prerendering.
+The page components and their `SEO` metadata are the source of the generated
+HTML; there is no second hand-written version of either page. Static content is
+visible without JavaScript, including the landing page's animated sections.
+Live status measurements and the consent-based school map load only in the
+browser. The client mounts normally, preserving stored themes and backend
+selection. This is build-time generation, not a server needed at runtime.
 
-For example, a release environment that requires prerendered output can use:
-
-```sh
-PRERENDER_STRICT=1 npm run build
-```
+Rendering failures fail the build. `SKIP_PRERENDER=1` explicitly skips generation
+for local troubleshooting; CI requires the generated public pages for deployment.
+`PRERENDER_STRICT` is no longer needed or used.
 
 Host the contents of **`dist/`** as a static site over HTTPS. Configure the host to serve existing assets and prerendered pages first, then fall back to **`/index.html`** for client-side routes such as `/login`, `/dashboard`, and `/demo/messages`. The app uses root-relative routes and assets, so deploy it at the domain root unless you also adapt those paths.
 
@@ -138,6 +143,6 @@ Work in a dedicated Git worktree when contributing in the combined LANIS workspa
 - **The app still contacts an old backend:** reset the saved override at `/set-custom-backend`, then check `.env.local` and restart Vite. Deployed bundles require a rebuild to pick up a new default URL.
 - **Refreshing a nested route returns 404:** configure the static host's SPA fallback to `/index.html`.
 - **Old UI remains after deployment:** check the service worker and caches in browser developer tools. Unregister the worker and reload to diagnose stale shell assets; clearing site storage also removes saved sessions and preferences.
-- **Prerendering fails:** check Chrome availability, its system libraries, and whether port 5179 is free. See the prerender environment options above.
+- **Prerendering fails:** inspect the Node/Vite error from `scripts/prerender.mjs`. Public page imports and render-time code must work without browser globals; keep browser-only work in effects or lazy components. A missing `dist/index.html` means the Vite build has not completed.
 
 Authentication tokens, preferences, and some module data are stored in the browser. Use test accounts for authenticated development, and keep credentials, tokens, `.env.local`, and personal school data out of commits and bug reports.

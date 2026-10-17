@@ -26,15 +26,11 @@ jobs:
           node-version: '24'
           # Deliberately no shared cache between untrusted PRs and main.
       - run: npm ci
-      - name: Install Chrome for prerendering
-        # Ubuntu hosted runners already include Chrome's runtime libraries.
-        run: npx puppeteer browsers install chrome
-      - name: Build and prerender
+      - name: Build and render public HTML
         run: npm run build
         env:
           NODE_ENV: production
           VITE_API_URL: https://lanis-backend.joancode.dev
-          PRERENDER_STRICT: '1'
       - name: Check deployment security rules
         run: node --test scripts/cloudflare/*.test.cjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
