@@ -796,7 +796,7 @@ export const calendarAPI = {
 
 // Timetable API
 export const timetableAPI = {
-  async getResolvedTimetable(token: string, options: { view_mode: string; plan_mode: string; week_type?: 'A' | 'B'; refresh?: boolean }, signal?: AbortSignal): Promise<TimetableResponse> {
+  async getResolvedTimetable(token: string, options: { view_mode: string; plan_mode: string; show_substitutions?: boolean; week_type?: 'A' | 'B'; refresh?: boolean }, signal?: AbortSignal): Promise<TimetableResponse> {
     const response = await apiClient.get<TimetableResponse>('/stundenplan/view', {
       headers: { 'X-Session-Token': token }, params: options, signal,
     });
