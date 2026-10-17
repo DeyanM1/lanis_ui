@@ -3,10 +3,7 @@ import axios from 'axios';
 import {
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
-  CheckCircleIcon,
-  ClockIcon,
   InformationCircleIcon,
-  UserGroupIcon,
   VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,31 +20,11 @@ const statusOrder: Record<VideoRoom['status'], number> = {
   closed: 3,
 };
 
-const statusAppearance: Record<VideoRoom['status'], { label: string; dot: string; badge: string; rail: string }> = {
-  open: {
-    label: 'Jetzt offen',
-    dot: 'bg-emerald-500',
-    badge: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-400/20',
-    rail: 'bg-emerald-500',
-  },
-  waiting: {
-    label: 'Noch nicht offen',
-    dot: 'bg-amber-500',
-    badge: 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-400/20',
-    rail: 'bg-amber-400',
-  },
-  closed: {
-    label: 'Geschlossen',
-    dot: 'bg-surface-400',
-    badge: 'bg-surface-100 text-surface-600 ring-surface-500/20 dark:bg-surface-800 dark:text-surface-300 dark:ring-surface-400/20',
-    rail: 'bg-surface-300 dark:bg-surface-700',
-  },
-  unknown: {
-    label: 'Status unbekannt',
-    dot: 'bg-surface-400',
-    badge: 'bg-surface-100 text-surface-600 ring-surface-500/20 dark:bg-surface-800 dark:text-surface-300 dark:ring-surface-400/20',
-    rail: 'bg-surface-300 dark:bg-surface-700',
-  },
+const statusLabels: Record<VideoRoom['status'], string> = {
+  open: 'Offen',
+  waiting: 'Noch nicht offen',
+  closed: 'Geschlossen',
+  unknown: 'Status unbekannt',
 };
 
 function safeHttpsUrl(value: string | null | undefined): string | null {
@@ -60,76 +37,42 @@ function safeHttpsUrl(value: string | null | undefined): string | null {
   }
 }
 
-const RoomCard: React.FC<{ room: VideoRoom }> = ({ room }) => {
-  const appearance = statusAppearance[room.status];
-  const joinUrl = safeHttpsUrl(room.join_url);
-  const actionLabel = room.status === 'open' ? 'Raum betreten' : 'Auf Raum warten';
+export const RoomCard: React.FC<{ room: VideoRoom; statusLive: boolean }> = ({ room, statusLive }) => {
+  const joinUrl = statusLive && room.can_join ? safeHttpsUrl(room.join_url) : null;
+  const status = statusLive ? room.status : 'unknown';
 
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-surface-200 bg-white shadow-soft transition-shadow hover:shadow-soft-md dark:border-surface-800 dark:bg-surface-900">
-      <div className={`absolute inset-y-0 left-0 w-1.5 ${appearance.rail}`} aria-hidden="true" />
-      <div className="p-5 pl-6 sm:p-6 sm:pl-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${appearance.badge}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${appearance.dot} ${room.status === 'open' ? 'animate-pulse motion-reduce:animate-none' : ''}`} />
-                {appearance.label}
-              </span>
-              {room.status_label && room.status_label !== appearance.label && (
-                <span className="text-xs text-surface-400 dark:text-surface-500">{room.status_label}</span>
-              )}
-            </div>
-            <h2 className="mt-3 text-xl font-semibold tracking-tight text-surface-900 dark:text-white sm:text-2xl">
-              {room.name}
-            </h2>
-            <div className="mt-2 flex items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
-              <UserGroupIcon className="h-4 w-4 shrink-0" />
-              <span>{room.teachers.length > 0 ? room.teachers.join(' · ') : 'Keine Lehrkraft angegeben'}</span>
-            </div>
-          </div>
-
-          {joinUrl && room.can_join ? (
-            <a
-              href={joinUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold shadow-sm transition-transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-surface-900 motion-reduce:transform-none ${room.status === 'open'
-                ? 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500'
-                : 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500'}`}
-            >
-              <VideoCameraIcon className="h-5 w-5" />
-              {actionLabel}
-              <ArrowTopRightOnSquareIcon className="h-4 w-4 opacity-70" />
-            </a>
-          ) : (
-            <div className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-surface-100 px-4 text-sm font-medium text-surface-500 dark:bg-surface-800 dark:text-surface-400">
-              <ClockIcon className="h-4 w-4" />
-              Kein Beitritt möglich
-            </div>
+    <article className="card">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-surface-900 dark:text-surface-100">{room.name}</h2>
+          {room.teachers.length > 0 && (
+            <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{room.teachers.join(' · ')}</p>
           )}
+          <p className={`mt-1 text-sm ${status === 'open' ? 'text-emerald-600 dark:text-emerald-400' : 'text-surface-500 dark:text-surface-400'}`}>
+            {statusLabels[status]}
+          </p>
         </div>
-
-        {room.links.length > 0 && (
-          <div className="mt-5 flex flex-wrap gap-2 border-t border-surface-100 pt-4 dark:border-surface-800">
-            {room.links.map(link => {
-              const url = safeHttpsUrl(link.url);
-              return url ? (
-                <a
-                  key={`${link.label}-${url}`}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:text-primary-300 dark:hover:bg-primary-950"
-                >
-                  {link.label}
-                  <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                </a>
-              ) : null;
-            })}
-          </div>
+        {joinUrl && (
+          <a href={joinUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary self-start sm:self-auto">
+            Raum betreten
+            <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+          </a>
         )}
       </div>
+      {room.links.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+          {room.links.map(link => {
+            const url = safeHttpsUrl(link.url);
+            return url ? (
+              <a key={`${link.label}-${url}`} href={url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline dark:text-primary-400">
+                {link.label}<ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+              </a>
+            ) : null;
+          })}
+        </div>
+      )}
     </article>
   );
 };
@@ -212,20 +155,10 @@ const Videokonferenz: React.FC = () => {
       <div className="mx-auto max-w-5xl">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300">
-                <VideoCameraIcon className="h-6 w-6" />
-              </span>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-surface-900 dark:text-white sm:text-3xl">Videokonferenz</h1>
-                <p className="mt-0.5 text-sm text-surface-500 dark:text-surface-400">Finde den richtigen Raum und tritt direkt bei.</p>
-              </div>
-            </div>
+            <h1 className="text-2xl font-bold text-surface-900 dark:text-white">Videokonferenz</h1>
             {lastChecked && (
-              <p className="mt-3 flex items-center gap-1.5 text-xs text-surface-400 dark:text-surface-500" aria-live="polite">
-                <CheckCircleIcon className="h-4 w-4" />
-                Zuletzt geprüft um {lastChecked.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-                {overview?.updated_label ? ` · Schulportal: ${overview.updated_label}` : ''}
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400" aria-live="polite">
+                Aktualisiert um {lastChecked.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
               </p>
             )}
           </div>
@@ -249,8 +182,7 @@ const Videokonferenz: React.FC = () => {
 
         {overview && !overview.status_live && !error && (
           <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200" role="status">
-            <p className="font-semibold">Live-Status vorübergehend nicht verfügbar</p>
-            <p className="mt-0.5 text-sm">Die Räume bleiben sichtbar, ein Beitritt wird erst nach der nächsten erfolgreichen Prüfung angeboten.</p>
+            <p className="text-sm">Raumstatus nicht verfügbar. Beitritt nach der nächsten erfolgreichen Prüfung möglich.</p>
           </div>
         )}
 
@@ -298,11 +230,8 @@ const Videokonferenz: React.FC = () => {
               {refreshing && <span className="text-xs text-surface-400">Wird geprüft …</span>}
             </div>
             <div className="space-y-3">
-              {rooms.map(room => <RoomCard key={room.id} room={room} />)}
+              {rooms.map(room => <RoomCard key={room.id} room={room} statusLive={overview.status_live === true} />)}
             </div>
-            <p className="mt-5 text-center text-xs text-surface-400 dark:text-surface-500">
-              Beim Beitritt öffnet sich der Videoraum in einem neuen Tab.
-            </p>
           </section>
         )}
       </div>
