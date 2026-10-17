@@ -802,7 +802,7 @@ export const coursesAPI = {
   async downloadSubmissionFile(token: string, fileRef: string, signal?: AbortSignal): Promise<Blob> {
     const response = await apiClient.get<Blob>(
       `/meinunterricht/submissions/file/${encodeURIComponent(fileRef)}`,
-      { headers: { 'X-Session-Token': token }, responseType: 'blob', signal },
+      { headers: { 'X-Session-Token': token }, responseType: 'blob', timeout: 0, signal },
     );
     return response.data;
   },
