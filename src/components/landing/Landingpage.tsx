@@ -498,7 +498,6 @@ const Landingpage: React.FC<LandingpageProps> = ({ hero, seo }) => {
           <Link to="/impressum" className="text-[11px] text-[#bbb] dark:text-surface-500 hover:text-[#888] dark:hover:text-surface-300 transition-colors">
             Impressum
           </Link>
-          <a href="/schulen" className="text-xs text-surface-500 hover:text-surface-700 dark:hover:text-surface-300">Alle Schulen</a>
           <Link to="/privacy-policy" className="text-[11px] text-[#bbb] dark:text-surface-500 hover:text-[#888] dark:hover:text-surface-300 transition-colors">
             Datenschutz
           </Link>
