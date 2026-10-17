@@ -763,6 +763,9 @@ export const coursesAPI = {
           'X-Session-Token': token,
           'Content-Type': 'multipart/form-data',
         },
+        // Large transfers must not inherit the 30-second JSON request deadline.
+        // Callers can still cancel through the supplied AbortSignal.
+        timeout: 0,
         signal,
       },
     );

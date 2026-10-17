@@ -271,7 +271,7 @@ const SubmissionDetailView: React.FC<{
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(objectUrl);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
     } catch {
       setError('Die Datei konnte nicht heruntergeladen werden.');
     } finally {
