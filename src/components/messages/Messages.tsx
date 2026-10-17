@@ -19,7 +19,8 @@ import {
 import { format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale';
 import clsx from 'clsx';
-import { isDemoRoute } from '../../utils/demoMode';
+import { isDemoRoute, notifyDemoCacheWrite } from '../../utils/demoMode';
+import { canWriteAccountData, captureAccountDataGeneration } from '../../utils/accountDataWrites';
 
 const htmlToText = (value: unknown): string => {
   if (typeof value !== 'string') return '';
@@ -42,7 +43,15 @@ const Messages: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<MessageHeader[]>(() => {
     const cached = isDemoRoute() ? null : localStorage.getItem('messages_cache');
-    return cached ? JSON.parse(cached) : [];
+    if (!cached) return [];
+    try {
+      return JSON.parse(cached).map((message: MessageHeader) => ({
+        ...message,
+        Betreff: htmlToText(message.Betreff),
+      }));
+    } catch {
+      return [];
+    }
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -97,7 +106,9 @@ const Messages: React.FC = () => {
   };
 
   const saveUsernameCache = (data: Record<string, string>) => {
-    localStorage.setItem(USERNAME_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+    const cachedUsername = JSON.stringify({ data, ts: Date.now() });
+    notifyDemoCacheWrite(USERNAME_CACHE_KEY, cachedUsername);
+    localStorage.setItem(USERNAME_CACHE_KEY, cachedUsername);
   };
 
   const usernameCache = useRef<Record<string, string>>(loadUsernameCache());
@@ -145,6 +156,7 @@ const Messages: React.FC = () => {
 
   const loadMessages = async (signal?: AbortSignal, clearError = true) => {
     if (!token) return;
+    const writeGeneration = captureAccountDataGeneration();
     setIsUpdating(true);
     try {
       if (clearError) setError('');
@@ -157,7 +169,7 @@ const Messages: React.FC = () => {
           Sender: msg.sender || msg.Sender,
           SenderId: msg.sender || msg.Sender,
           SenderName: displayName(msg.SenderName, msg.sender || msg.Sender),
-          Betreff: msg.Betreff,
+          Betreff: htmlToText(msg.Betreff),
           WeitereEmpfaenger: msg.WeitereEmpfaenger,
           private: msg.private || 0,
           empf: Array.isArray(msg.empf) ? msg.empf.map((recipient: unknown) => displayName(recipient)) : [],
@@ -167,7 +179,11 @@ const Messages: React.FC = () => {
         }));
         const resolved = applyUsernameCache(transformedMessages);
         setMessages(resolved);
-        localStorage.setItem('messages_cache', JSON.stringify(resolved));
+        if (canWriteAccountData(writeGeneration)) {
+          const cachedMessages = JSON.stringify(resolved);
+          notifyDemoCacheWrite('messages_cache', cachedMessages);
+          localStorage.setItem('messages_cache', cachedMessages);
+        }
       } else {
         setError('Fehler beim Laden der Nachrichten.');
       }
