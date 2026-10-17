@@ -5,6 +5,7 @@ import AppIcon from '../AppIcon';
 import { homepageAPI } from '../../services/api';
 import type { HomepageUserMapResponse } from '../../types';
 import UptimePreview from '../status/UptimePreview';
+import { hasSchoolCoordinates } from './schoolMapCoordinates';
 import {
   BookOpenIcon,
   ChatBubbleLeftRightIcon,
@@ -189,7 +190,7 @@ const SchoolMapPanel: React.FC<{ state: SchoolMapState }> = ({ state }) => {
     );
   }
 
-  const hasMappableSchool = state.data.schools.some(school => getSchoolCoordinate(school) !== null);
+  const hasMappableSchool = state.data.schools.some(hasSchoolCoordinates);
   if (!hasMappableSchool) {
     return (
       <div className="h-full w-full p-8 flex flex-col items-center justify-center text-center" role="status">

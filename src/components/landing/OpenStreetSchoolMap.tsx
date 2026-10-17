@@ -1,23 +1,13 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { hasSchoolCoordinates } from './schoolMapCoordinates';
 import type { HomepageSchoolMapEntry } from '../../types';
 
 const HESSEN_CENTER: L.LatLngExpression = [50.5, 8.9];
 
 const getSchoolCoordinate = (school: HomepageSchoolMapEntry): L.LatLng | null => {
-  if (
-    school.latitude === null
-    || school.longitude === null
-    || !Number.isFinite(school.latitude)
-    || !Number.isFinite(school.longitude)
-    || school.latitude < 49.2
-    || school.latitude > 51.8
-    || school.longitude < 7.4
-    || school.longitude > 10.2
-  ) {
-    return null;
-  }
+  if (!hasSchoolCoordinates(school)) return null;
 
   return L.latLng(school.latitude, school.longitude);
 };
