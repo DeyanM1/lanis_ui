@@ -28,8 +28,8 @@ export default function BrowserPushRuntime() {
       running = true;
       nextAttemptAt = Date.now() + 60_000;
       try {
-        const repaired = await repairBrowserPushRegistration(token, controller.signal, isCurrent, repairState);
-        if (repaired) nextAttemptAt = Date.now() + 15 * 60_000;
+        const result = await repairBrowserPushRegistration(token, controller.signal, isCurrent, repairState);
+        if (result === 'registered' || result === 'inactive') nextAttemptAt = Date.now() + 15 * 60_000;
       } catch (error) {
         if (!controller.signal.aborted) console.warn('Browser push registration will retry:', error);
       } finally {

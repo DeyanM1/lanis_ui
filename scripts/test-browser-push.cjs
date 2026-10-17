@@ -51,7 +51,7 @@ function browser(overrides = {}) {
 
 test('an existing browser subscription is restored to the backend after its record is lost', async () => {
   const b = browser();
-  assert.equal(await b.repair(), true);
+  assert.equal(await b.repair(), 'registered');
   assert.equal(b.calls.registered.length, 1);
   assert.equal(b.calls.registered[0].payload.endpoint, 'https://fcm.googleapis.com/browser');
   assert.equal(b.calls.subscribed, 0);
@@ -61,7 +61,7 @@ test('an existing browser subscription is restored to the backend after its reco
 test('server signing key rotation renews an already opted-in browser', async () => {
   const key = Buffer.alloc(65, 7); key[0] = 4;
   const b = browser({ publicKey: key.toString('base64url') });
-  assert.equal(await b.repair(), true);
+  assert.equal(await b.repair(), 'registered');
   assert.equal(b.calls.unsubscribed, 1);
   assert.equal(b.calls.subscribed, 1);
   assert.equal(b.calls.registered.length, 1);
@@ -69,17 +69,17 @@ test('server signing key rotation renews an already opted-in browser', async () 
 
 test('a normal server rejection is unsuccessful and preserves the subscription for retry', async () => {
   const b = browser({ registrationAccepted: false });
-  assert.equal(await b.repair(), false);
+  assert.equal(await b.repair(), 'retry');
   assert.equal(b.calls.unsubscribed, 0);
   b.state.registrationAccepted = true;
-  assert.equal(await b.repair(), true);
+  assert.equal(await b.repair(), 'registered');
   assert.equal(b.calls.registered.length, 2);
 });
 
 test('disabled accounts, unsupported permission, and new devices are never opted in automatically', async () => {
   for (const override of [{ enabled: false }, { permission: 'default' }, { permission: 'denied' }, { configured: false }, { subscription: null }]) {
     const b = browser(override);
-    assert.equal(await b.repair(), false);
+    assert.equal(await b.repair(), 'inactive');
     assert.equal(b.calls.registered.length, 0);
     assert.equal(b.calls.subscribed, 0);
     assert.equal(b.calls.permissionRequested, 0);
@@ -92,7 +92,7 @@ test('an interrupted key renewal retries without treating this as a new opt-in',
   await assert.rejects(b.repair(), /push service offline/);
   assert.equal(b.state.subscription, null);
   b.state.subscribeFails = false;
-  assert.equal(await b.repair(), true);
+  assert.equal(await b.repair(), 'registered');
   assert.equal(b.calls.subscribed, 2);
   assert.equal(b.calls.registered.length, 1);
 });
@@ -109,7 +109,7 @@ test('network failure retains the browser subscription for the next repair', asy
   await assert.rejects(b.repair(), /offline/);
   assert.equal(b.calls.unsubscribed, 0);
   b.api.getConfig = async () => ({ success: true, configured: true, public_key: b.state.publicKey });
-  assert.equal(await b.repair(), true);
+  assert.equal(await b.repair(), 'registered');
 });
 
 test('logout, deletion, or backend switching during a request cancels registration', async () => {
@@ -119,7 +119,7 @@ test('logout, deletion, or backend switching during a request cancels registrati
       invalidate(b);
       return { success: true, preferences: { enabled: true } };
     };
-    assert.equal(await b.repair(), false);
+    assert.equal(await b.repair(), 'cancelled');
     assert.equal(b.calls.registered.length, 0);
     assert.equal(b.calls.unsubscribed, 0);
   }
@@ -155,7 +155,7 @@ function runtime(options = {}) {
       return { async repairBrowserPushRegistration(...args) {
         calls.push(args);
         if (options.fail) throw new Error('backend restarting');
-        return options.accepted !== false;
+        return options.result || (options.accepted === false ? 'retry' : 'registered');
       } };
     },
   };
@@ -209,6 +209,33 @@ test('a resolved registration rejection uses the one-minute retry instead of the
   await r.tick();
   assert.equal(r.calls.length, 2);
   r.cleanup();
+});
+
+test('successful inactive checks wait 15 minutes rather than polling APIs every minute', async () => {
+  const r = runtime({ result: 'inactive' });
+  await new Promise(setImmediate);
+  r.advance(60_000);
+  await r.tick();
+  await r.events.get('focus')();
+  await r.events.get('online')();
+  assert.equal(r.calls.length, 1);
+  r.advance(14 * 60_000 - 1);
+  await r.tick();
+  assert.equal(r.calls.length, 1);
+  r.advance(1);
+  await r.tick();
+  assert.equal(r.calls.length, 2);
+  r.cleanup();
+});
+
+test('unsuccessful config/preferences responses request a retry rather than an inactive cadence', async () => {
+  for (const endpoint of ['getConfig', 'getPreferences']) {
+    const b = browser();
+    b.api[endpoint] = async () => ({ success: false });
+    assert.equal(await b.repair(), 'retry');
+    assert.equal(b.calls.registered.length, 0);
+    assert.equal(b.calls.unsubscribed, 0);
+  }
 });
 
 test('native apps, demo routes, signed-out users and notification settings do not run background repair', () => {

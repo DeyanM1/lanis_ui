@@ -2,7 +2,7 @@
 
 Web Push uses browser subscriptions, not application webhooks. An authenticated browser that already has notification permission and a subscription now re-registers it outside notification settings. This repairs a backend record lost to an upgrade migration and associates the endpoint with the current login session.
 
-Recovery runs on page load, and checks again while the page is visible. Successful checks are limited to every 15 minutes. Failed requests retry after one minute; returning online or to the page can trigger a due retry. New devices and blocked/unrequested permissions are never opted in automatically. The notification settings page continues to own explicit enable/disable actions. Demo routes and native Android are excluded.
+Recovery runs on page load, and checks again while the page is visible. Successful registrations and successful inactive checks (such as disabled account notifications or an unconfigured server) wait 15 minutes. Rejected registrations, unsuccessful API responses and failed requests retry after one minute; returning online or to the page can trigger a due retry. Cancellation is reported separately. New devices and blocked/unrequested permissions are never opted in automatically. The notification settings page continues to own explicit enable/disable actions. Demo routes and native Android are excluded.
 
 A changed server VAPID public key renews an existing subscription. An interrupted renewal is retried while the page remains mounted. If the browser has removed its subscription entirely, or a closed page loses an interrupted renewal, notification settings must activate that device again. Stable VAPID keys should be preserved across deployments.
 
