@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { dateiverteilungAPI } from '../../services/api';
 import type { DateiverteilungDistribution, DateiverteilungFile } from '../../types';
 import SEO from '../seo/SEO';
+import { safeHttpUrl } from '../../utils/safeHttpUrl';
 
 type Filter = 'all' | 'unread';
 
@@ -273,12 +274,15 @@ const Dateiverteilung: React.FC = () => {
 
                       {distribution.links.length > 0 && (
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {distribution.links.map(link => (
-                            <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary !px-3 text-sm">
+                          {distribution.links.map(link => {
+                            const url = safeHttpUrl(link.url);
+                            return url ? (
+                            <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary !px-3 text-sm">
                               {link.label}
                               <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
                             </a>
-                          ))}
+                          ) : null;
+                          })}
                         </div>
                       )}
                     </article>
