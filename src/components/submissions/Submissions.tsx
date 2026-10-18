@@ -69,7 +69,6 @@ const SubmissionCard: React.FC<{
     className="group w-full text-left card card-hover overflow-hidden p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
   >
     <div className="flex min-h-36">
-      <div className={clsx('w-2 shrink-0', submission.status === 'open' ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-700')} />
       <div className="min-w-0 flex-1 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -363,7 +362,7 @@ const SubmissionDetailView: React.FC<{
         </section>
 
         <aside className="space-y-4">
-          <section className="card border-l-4 border-l-primary-500">
+          <section className="card">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-surface-500">Zeitfenster</p>
             <dl className="mt-4 space-y-3 text-sm"><div><dt className="text-surface-500">Start</dt><dd className="font-medium text-surface-900 dark:text-surface-100">{detail.start || 'Nicht angegeben'}</dd></div><div><dt className="text-surface-500">Frist</dt><dd className="font-medium text-surface-900 dark:text-surface-100">{detail.deadline || 'Nicht angegeben'}</dd></div><div><dt className="text-surface-500">Automatische Löschung</dt><dd className="font-medium text-surface-900 dark:text-surface-100">{detail.automatic_deletion || 'Nicht angegeben'}</dd></div></dl>
           </section>
@@ -408,6 +407,7 @@ const Submissions: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [filter, setFilter] = useState<'all' | 'open' | 'submitted'>('all');
   const [detail, setDetail] = useState<SubmissionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -472,6 +472,23 @@ const Submissions: React.FC = () => {
   }, [token, id]);
 
   const openCount = useMemo(() => submissions.filter(item => item.status === 'open').length, [submissions]);
+  const submittedCount = useMemo(() => submissions.filter(item => (item.uploaded_count ?? 0) > 0).length, [submissions]);
+  const visibleSubmissions = useMemo(() => submissions.filter(item => (
+    filter === 'open' ? item.status === 'open'
+      : filter === 'submitted' ? (item.uploaded_count ?? 0) > 0 : true
+  )), [submissions, filter]);
+  const filters = [
+    { key: 'all', label: 'Alle', count: submissions.length },
+    { key: 'open', label: 'Offen', count: openCount },
+    { key: 'submitted', label: 'Abgegeben', count: submittedCount },
+  ] as const;
+  const emptyTitle = submissions.length === 0 ? 'Keine Abgaben'
+    : filter === 'open' ? 'Keine offenen Abgaben' : 'Noch nichts abgegeben';
+  const emptyDescription = submissions.length === 0
+    ? 'Sobald dir ein Upload-Auftrag zugewiesen wurde, erscheint er hier.'
+    : filter === 'open'
+      ? 'Zurzeit ist keine Abgabe zum Hochladen geöffnet.'
+      : 'Sobald du eine Datei abgegeben hast, findest du die Abgabe hier.';
   const isDetail = Boolean(id);
 
   if (!token) return <div className="p-6 text-center text-surface-500">Nicht authentifiziert</div>;
@@ -508,8 +525,42 @@ const Submissions: React.FC = () => {
             </button>
           </header>
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-200"><ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />{error}</div>}
-          {!loading && !error && <div className="grid gap-3 sm:grid-cols-3"><div className="card border-l-4 border-l-primary-500"><p className="text-xs uppercase tracking-[0.14em] text-surface-500">Aufträge</p><p className="mt-1 text-2xl font-bold text-surface-900 dark:text-surface-100">{submissions.length}</p></div><div className="card border-l-4 border-l-emerald-500"><p className="text-xs uppercase tracking-[0.14em] text-surface-500">Offen</p><p className="mt-1 text-2xl font-bold text-surface-900 dark:text-surface-100">{openCount}</p></div><div className="card border-l-4 border-l-surface-300 dark:border-l-surface-700"><p className="text-xs uppercase tracking-[0.14em] text-surface-500">Abgegeben</p><p className="mt-1 text-2xl font-bold text-surface-900 dark:text-surface-100">{submissions.filter(item => (item.uploaded_count || 0) > 0).length}</p></div></div>}
-          {loading ? <div className="space-y-3">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="card h-36 animate-pulse bg-surface-100 dark:bg-surface-900" />)}</div> : submissions.length === 0 ? !error && <div className="card py-14 text-center"><DocumentArrowUpIcon className="mx-auto h-12 w-12 text-surface-400" /><h2 className="mt-3 text-lg font-semibold text-surface-900 dark:text-surface-100">Keine Abgaben</h2><p className="mx-auto mt-1 max-w-md text-sm text-surface-500 dark:text-surface-400">Sobald dir ein Upload-Auftrag zugewiesen wurde, erscheint er hier.</p></div> : <div className="space-y-3">{submissions.map(submission => <SubmissionCard key={submission.id} submission={submission} onOpen={() => openSubmission(submission)} />)}</div>}
+          {!loading && !error && (
+            <div role="group" aria-label="Abgaben filtern" className="inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-surface-100 p-1 dark:bg-surface-900">
+              {filters.map(option => (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={filter === option.key}
+                  aria-controls="submission-results"
+                  onClick={() => setFilter(option.key)}
+                  className={clsx(
+                    'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+                    filter === option.key
+                      ? 'bg-white text-surface-900 shadow-sm dark:bg-surface-800 dark:text-surface-100'
+                      : 'text-surface-500 hover:bg-white/60 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800/60 dark:hover:text-surface-200',
+                  )}
+                >
+                  {option.label}
+                  <span className="rounded-md bg-surface-200/60 px-1.5 py-0.5 text-xs tabular-nums text-surface-600 dark:bg-surface-700/60 dark:text-surface-300">{option.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div id="submission-results" aria-busy={loading}>
+            {loading ? (
+              <div className="space-y-3">{Array.from({ length: 4 }).map((_, index) => <div key={index} className="card h-36 animate-pulse bg-surface-100 dark:bg-surface-900" />)}</div>
+            ) : visibleSubmissions.length === 0 ? !error && (
+              <div className="card py-14 text-center">
+                <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-surface-400" />
+                <h2 className="mt-3 text-lg font-semibold text-surface-900 dark:text-surface-100">{emptyTitle}</h2>
+                <p className="mx-auto mt-1 max-w-md text-sm text-surface-500 dark:text-surface-400">{emptyDescription}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">{visibleSubmissions.map(submission => <SubmissionCard key={submission.id} submission={submission} onOpen={() => openSubmission(submission)} />)}</div>
+            )}
+            {!loading && !error && <p role="status" className="sr-only">{visibleSubmissions.length} {visibleSubmissions.length === 1 ? 'Abgabe angezeigt' : 'Abgaben angezeigt'}</p>}
+          </div>
         </div>
       ) : loading ? (
         <div className="mx-auto max-w-5xl space-y-4"><div className="h-10 w-2/3 animate-pulse rounded bg-surface-200 dark:bg-surface-800" /><div className="card h-96 animate-pulse bg-surface-100 dark:bg-surface-900" /></div>
