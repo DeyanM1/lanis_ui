@@ -776,7 +776,6 @@ export const coursesAPI = {
     token: string,
     detail: { course_id: string; entry_id: string; upload_id: string },
     fileIndex: string,
-    password: string,
     signal?: AbortSignal,
   ): Promise<SubmissionDeleteResponse> {
     const form = new FormData();
@@ -784,7 +783,6 @@ export const coursesAPI = {
     form.append('entry_id', detail.entry_id);
     form.append('upload_id', detail.upload_id);
     form.append('file_index', fileIndex);
-    form.append('password', password);
     const response = await apiClient.delete<SubmissionDeleteResponse>(
       '/meinunterricht/submissions/file',
       {

@@ -153,7 +153,6 @@ const SubmissionDetailView: React.FC<{
   const [uploadStatuses, setUploadStatuses] = useState<SubmissionUploadStatus[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState('');
-  const [password, setPassword] = useState('');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -174,7 +173,6 @@ const SubmissionDetailView: React.FC<{
   const closeDeleteDialog = () => {
     if (busy) return;
     setDeleteTarget(null);
-    setPassword('');
     setDeleteError('');
   };
 
@@ -279,22 +277,21 @@ const SubmissionDetailView: React.FC<{
   };
 
   const removeFile = async () => {
-    if (!deleteTarget || !password || busy || refreshing) return;
+    if (!deleteTarget || busy || refreshing) return;
     setBusy(true);
     setError('');
     setDeleteError('');
     try {
-      const response = await coursesAPI.deleteSubmissionFile(token, detail, deleteTarget, password);
+      const response = await coursesAPI.deleteSubmissionFile(token, detail, deleteTarget);
       if (!mountedRef.current) return;
       if (!response.success) {
         setDeleteError(response.code === '-1'
-          ? 'Das Passwort ist falsch. Bitte versuche es erneut.'
+          ? 'Deine Anmeldung wird vom Schulportal nicht mehr akzeptiert. Bitte melde dich erneut an.'
           : response.code === '-2'
             ? 'Diese Datei kann nicht mehr gelöscht werden.'
             : 'Die Datei konnte nicht gelöscht werden. Bitte versuche es erneut.');
       } else {
         setDeleteTarget(null);
-        setPassword('');
         setDeleteError('');
         if (mountedRef.current) await onRefresh();
       }
@@ -387,16 +384,12 @@ const SubmissionDetailView: React.FC<{
             <h2 id="delete-submission-file-title" className="text-lg font-semibold">Datei löschen?</h2>
             <p className="mt-2 break-words text-sm font-medium">{detail.own_files.find(file => file.index === deleteTarget)?.name}</p>
             <p id="delete-submission-file-description" className="mt-2 text-sm text-surface-600 dark:text-surface-400">
-              Bestätige das Löschen mit deinem Schulportal-Passwort.
+              Die Datei wird aus dieser Abgabe gelöscht.
             </p>
             {deleteError && <div role="alert" className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-200"><ExclamationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />{deleteError}</div>}
-            <label className="mt-5 block text-sm font-medium text-surface-700 dark:text-surface-300">
-              Passwort
-              <input type="password" value={password} onChange={event => { setPassword(event.target.value); setDeleteError(''); }} autoFocus required disabled={busy} className="input mt-1 w-full" autoComplete="current-password" />
-            </label>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button type="button" className="btn btn-secondary" disabled={busy} onClick={closeDeleteDialog}>Abbrechen</button>
-              <button type="submit" className="btn btn-primary" disabled={!password || busy}>{busy ? 'Wird gelöscht …' : 'Endgültig löschen'}</button>
+              <button type="button" className="btn btn-secondary" autoFocus disabled={busy} onClick={closeDeleteDialog}>Abbrechen</button>
+              <button type="submit" className="btn btn-primary" disabled={busy || refreshing}>{busy ? 'Wird gelöscht …' : 'Endgültig löschen'}</button>
             </div>
           </form>
         </dialog>

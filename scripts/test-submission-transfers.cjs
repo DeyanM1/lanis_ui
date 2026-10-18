@@ -85,3 +85,19 @@ test('submission downloads remain cancellable before sending a request', async (
     error => axios.isCancel(error));
   assert.equal(requests.length, 0);
 });
+
+test('submission deletion uses the session token without collecting a password', async () => {
+  const { api, requests } = captureClient({ success: true, code: '1' });
+  const controller = new AbortController();
+  const result = await api.deleteSubmissionFile('test-token', detail, '123', controller.signal);
+  const request = requests[0];
+  assert.equal(request.method, 'delete');
+  assert.equal(request.url, '/meinunterricht/submissions/file');
+  assert.equal(request.headers.get('X-Session-Token'), 'test-token');
+  assert.equal(request.signal, controller.signal);
+  assert(request.data instanceof FormData);
+  for (const [key, value] of Object.entries(detail)) assert.equal(request.data.get(key), value);
+  assert.equal(request.data.get('file_index'), '123');
+  assert.equal(request.data.has('password'), false);
+  assert.equal(result.success, true);
+});
