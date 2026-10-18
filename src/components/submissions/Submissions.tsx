@@ -106,8 +106,8 @@ const FileRow: React.FC<{
   meta?: string | null;
   action?: React.ReactNode;
 }> = ({ name, meta, action }) => (
-  <div className="flex items-center gap-3 rounded-xl border border-surface-200 bg-white px-3 py-3 dark:border-surface-800 dark:bg-surface-900">
-    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-700 dark:bg-primary-950/60 dark:text-primary-300">
+  <div className="flex items-center gap-3 border-b border-surface-200 py-3 last:border-b-0 dark:border-surface-800">
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center text-surface-500 dark:text-surface-400">
       <DocumentTextIcon className="h-5 w-5" />
     </div>
     <div className="min-w-0 flex-1">
@@ -119,7 +119,7 @@ const FileRow: React.FC<{
 );
 
 const UploadResults: React.FC<{ statuses: SubmissionUploadStatus[] }> = ({ statuses }) => (
-  <div className="mt-4 space-y-2 rounded-xl border border-surface-200 p-4 dark:border-surface-800">
+  <div className="mt-4 space-y-2 border-t border-surface-200 pt-4 dark:border-surface-800">
     <p className="text-sm font-semibold text-surface-900 dark:text-surface-100">Upload-Ergebnis</p>
     {statuses.map((item, index) => (
       <div key={`${item.name}-${index}`} className="flex items-start gap-2 text-sm">
@@ -324,35 +324,39 @@ const SubmissionDetailView: React.FC<{
 
       {(error || refreshError) && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-200"><ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />{error || refreshError}</div>}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,.7fr)]">
         <section className="card overflow-hidden p-0">
-          <div className="border-b border-surface-200 bg-surface-50 px-5 py-4 dark:border-surface-800 dark:bg-surface-950">
+          <div className="border-b border-surface-200 px-5 py-4 dark:border-surface-800">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-surface-500">Abgabe</p><h2 className="mt-1 text-xl font-semibold text-surface-900 dark:text-surface-100">Deine Dateien</h2></div>
               <SubmissionStatus status={detail.status} />
             </div>
           </div>
           <div className="space-y-3 p-5">
-            {detail.own_files.length === 0 && <div className="rounded-xl border border-dashed border-surface-300 px-4 py-6 text-center text-sm text-surface-500 dark:border-surface-700 dark:text-surface-400">Du hast noch keine Datei abgegeben.</div>}
-            {detail.own_files.map(file => (
+            {detail.own_files.length === 0 && <p className="py-2 text-sm text-surface-500 dark:text-surface-400">Du hast noch keine Datei abgegeben.</p>}
+            {detail.own_files.length > 0 && <div>{detail.own_files.map(file => (
               <FileRow
                 key={file.index}
                 name={file.name}
                 meta={[file.time, file.comment].filter(Boolean).join(' · ') || null}
                 action={<div className="flex shrink-0 items-center gap-1"><button type="button" className="rounded-lg p-2 text-surface-500 hover:bg-surface-100 hover:text-primary-700 dark:hover:bg-surface-800 dark:hover:text-primary-300" onClick={() => void download(file.download_ref, file.name)} disabled={Boolean(downloading)} title="Datei herunterladen"><ArrowDownTrayIcon className={clsx('h-4 w-4', downloading === file.download_ref && 'animate-bounce')} /></button>{detail.can_delete && <button type="button" className="rounded-lg p-2 text-surface-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40 dark:hover:text-red-300" onClick={() => setDeleteTarget(file.index)} disabled={busy || refreshing} aria-label={`${file.name} löschen`} title="Datei löschen"><TrashIcon className="h-4 w-4" /></button>}</div>}
               />
-            ))}
+            ))}</div>}
 
             {uploadAllowed ? (
-              <div className="mt-5 rounded-2xl border border-primary-200 bg-primary-50/60 p-4 dark:border-primary-900/70 dark:bg-primary-950/20">
+              <div className="space-y-4 pt-2">
                 <input ref={inputRef} type="file" className="hidden" multiple={multipleFilesAllowed} accept={accept} onChange={chooseFiles} disabled={busy || refreshing} />
-                <button type="button" onClick={() => inputRef.current?.click()} disabled={busy || refreshing} className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-primary-300 px-4 py-7 text-center text-primary-800 transition-colors hover:bg-primary-100/70 dark:border-primary-800 dark:text-primary-200 dark:hover:bg-primary-950/50">
-                  <DocumentArrowUpIcon className="h-8 w-8" />
-                  <span className="mt-2 font-semibold">Dateien auswählen</span>
-                  <span className="mt-1 text-xs text-primary-700/80 dark:text-primary-300/80">{detail.allowed_file_types.join(', ') || 'Erlaubte Dateitypen ansehen'} · {multipleFilesAllowed ? 'Bis zu fünf Dateien pro Upload' : 'Maximal eine Datei'}</span>
+                <button type="button" onClick={() => inputRef.current?.click()} disabled={busy || refreshing} className="flex w-full items-center gap-3 rounded-lg border border-dashed border-surface-300 px-4 py-5 text-left text-surface-700 transition-colors hover:border-primary-400 hover:bg-surface-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed dark:border-surface-700 dark:text-surface-200 dark:hover:border-primary-500 dark:hover:bg-surface-800/50">
+                  <DocumentArrowUpIcon className="h-6 w-6 shrink-0 text-surface-500 dark:text-surface-400" />
+                  <span className="min-w-0">
+                    <span className="block font-semibold">Dateien auswählen</span>
+                    <span className="mt-1 block text-xs text-surface-500 dark:text-surface-400">{detail.allowed_file_types.join(', ') || 'Erlaubte Dateitypen ansehen'} · {multipleFilesAllowed ? 'Bis zu fünf Dateien pro Upload' : 'Maximal eine Datei'}</span>
+                  </span>
                 </button>
-                {selectedFiles.length > 0 && <div className="mt-3 space-y-2">{selectedFiles.map(file => <FileRow key={`${file.name}-${file.lastModified}`} name={file.name} meta={formatBytes(file.size)} action={<button type="button" onClick={() => { setSelectedFiles(current => current.filter(item => item !== file)); if (inputRef.current) inputRef.current.value = ''; }} className="rounded-lg p-2 text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800" disabled={busy || refreshing} aria-label={`${file.name} entfernen`}><XMarkIcon className="h-4 w-4" /></button>} />)}</div>}
-                <button type="button" onClick={() => void upload()} disabled={!selectedFiles.length || busy || refreshing} className="btn btn-primary mt-3 w-full disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'Wird hochgeladen …' : 'Hochladen'}</button>
+                {selectedFiles.length > 0 && <div>{selectedFiles.map(file => <FileRow key={`${file.name}-${file.lastModified}`} name={file.name} meta={formatBytes(file.size)} action={<button type="button" onClick={() => { setSelectedFiles(current => current.filter(item => item !== file)); if (inputRef.current) inputRef.current.value = ''; }} className="rounded-lg p-2 text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800" disabled={busy || refreshing} aria-label={`${file.name} entfernen`}><XMarkIcon className="h-4 w-4" /></button>} />)}</div>}
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => void upload()} disabled={!selectedFiles.length || busy || refreshing} className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">{busy ? 'Wird hochgeladen …' : 'Hochladen'}</button>
+                </div>
               </div>
             ) : (
               <div className="mt-5 flex items-start gap-2 rounded-xl bg-surface-100 px-4 py-3 text-sm text-surface-600 dark:bg-surface-800 dark:text-surface-300"><InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />{attemptClosed ? 'Diese Abgabe erlaubt keine weiteren Versuche.' : detail.status === 'closed' ? 'Die Abgabe ist geschlossen.' : 'Das Hochladen ist derzeit nicht möglich.'}</div>
