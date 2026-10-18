@@ -137,10 +137,6 @@ const Dateiverteilung: React.FC = () => {
         <header className="mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700 dark:text-primary-300">
-                <InboxArrowDownIcon className="h-4 w-4" />
-                Für dich verteilt
-              </div>
               <h1 className="text-2xl font-bold tracking-tight text-surface-950 dark:text-white sm:text-3xl">Dateiverteilung</h1>
               <p className="mt-1.5 max-w-2xl text-sm text-surface-500 dark:text-surface-400">
                 Finde Elternbriefe, persönliche Dokumente und Zugänge dort, woher sie kommen.
@@ -160,13 +156,13 @@ const Dateiverteilung: React.FC = () => {
             </button>
           </div>
 
-          <div className="mt-5 grid gap-3 rounded-2xl border border-surface-200 bg-white p-3 shadow-soft dark:border-surface-800 dark:bg-surface-900 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <label className="relative block">
               <span className="sr-only">Verteilte Dateien durchsuchen</span>
               <MagnifyingGlassIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-400" />
               <input
                 type="search"
-                className="input !border-transparent !bg-surface-50 pl-10 text-sm focus:!border-primary-400 dark:!bg-surface-950"
+                className="input !bg-white pl-10 text-sm dark:!bg-surface-900"
                 placeholder="Titel, Absender oder Datei suchen …"
                 value={query}
                 onChange={event => setQuery(event.target.value)}
@@ -220,16 +216,14 @@ const Dateiverteilung: React.FC = () => {
                       {sourceInitial(source)}
                     </div>
                     <div className="min-w-0 md:mt-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-surface-400">Herkunft</p>
                       <h2 id={`${sourceIdPrefix}-${sourceIndex}`} className="truncate text-sm font-semibold text-surface-800 dark:text-surface-200 md:whitespace-normal">{source}</h2>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative space-y-3 before:absolute before:bottom-3 before:left-[1.125rem] before:top-3 before:w-px before:bg-surface-200 dark:before:bg-surface-700 sm:before:left-[1.375rem]">
+                <div className="space-y-3">
                   {items.map(distribution => (
-                    <article key={distribution.id} className="relative rounded-2xl border border-surface-200 bg-white p-4 pl-12 shadow-soft dark:border-surface-800 dark:bg-surface-900 sm:p-5 sm:pl-16">
-                      <span className={`absolute left-[0.875rem] top-6 z-10 h-2.5 w-2.5 rounded-full ring-4 ring-white dark:ring-surface-900 sm:left-[1.125rem] ${distribution.unread ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-600'}`} aria-hidden="true" />
+                    <article key={distribution.id} className="rounded-2xl border border-surface-200 bg-white p-4 shadow-soft dark:border-surface-800 dark:bg-surface-900 sm:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
