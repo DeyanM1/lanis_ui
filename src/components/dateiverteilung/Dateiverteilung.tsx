@@ -209,8 +209,8 @@ const Dateiverteilung: React.FC = () => {
           <div className="space-y-8">
             <p className="sr-only">{fileCount} Dateien in {distributions.length} Verteilungen</p>
             {visibleGroups.map(([source, items], sourceIndex) => (
-              <section key={source} aria-labelledby={`${sourceIdPrefix}-${sourceIndex}`} className="grid gap-3 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-5">
-                <div className="md:sticky md:top-6 md:self-start">
+              <section key={source} aria-labelledby={`${sourceIdPrefix}-${sourceIndex}`} className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-5">
+                <div className="min-w-0 md:sticky md:top-6 md:self-start">
                   <div className="flex items-center gap-2.5 md:block">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-sm font-bold text-primary-800 dark:bg-primary-950 dark:text-primary-200">
                       {sourceInitial(source)}
@@ -221,20 +221,20 @@ const Dateiverteilung: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="min-w-0 space-y-3">
                   {items.map(distribution => (
-                    <article key={distribution.id} className="rounded-2xl border border-surface-200 bg-white p-4 shadow-soft dark:border-surface-800 dark:bg-surface-900 sm:p-5">
+                    <article key={distribution.id} className="min-w-0 rounded-2xl border border-surface-200 bg-white p-4 shadow-soft dark:border-surface-800 dark:bg-surface-900 sm:p-5">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-semibold text-surface-950 dark:text-white">{distribution.title}</h3>
+                            <h3 className="text-base font-semibold [overflow-wrap:anywhere] text-surface-950 dark:text-white">{distribution.title}</h3>
                             {distribution.unread && <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-800 dark:bg-primary-950 dark:text-primary-200">Neu</span>}
                           </div>
                           {distribution.created_at && <p className="mt-1 text-xs font-medium text-surface-400 dark:text-surface-500">Bereitgestellt am {distribution.created_at}</p>}
                         </div>
                       </div>
 
-                      {distribution.description && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-surface-600 dark:text-surface-300">{distribution.description}</p>}
+                      {distribution.description && <p className="mt-3 whitespace-pre-line text-sm leading-6 [overflow-wrap:anywhere] text-surface-600 dark:text-surface-300">{distribution.description}</p>}
 
                       {distribution.files.length > 0 && (
                         <div className="mt-4 space-y-2">
@@ -271,7 +271,7 @@ const Dateiverteilung: React.FC = () => {
                           {distribution.links.map(link => {
                             const url = safeHttpUrl(link.url);
                             return url ? (
-                            <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary !px-3 text-sm">
+                            <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary max-w-full !px-3 text-left text-sm [overflow-wrap:anywhere]">
                               {link.label}
                               <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
                             </a>
