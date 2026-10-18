@@ -239,9 +239,22 @@ test('unsuccessful config/preferences responses request a retry rather than an i
 });
 
 test('native apps, demo routes, signed-out users and notification settings do not run background repair', () => {
-  for (const option of [{ native: true }, { path: '/demo/dashboard' }, { authenticated: false }, { path: '/settings/notifications' }]) {
+  for (const option of [
+    { native: true }, { path: '/demo/dashboard' }, { authenticated: false },
+    { path: '/settings/notifications' }, { path: '/settings/notifications/' },
+    { path: '/settings/notifications/browser' }, { path: '/settings//notifications' },
+    { path: '/Settings/notifications/' },
+  ]) {
     const r = runtime(option);
     assert.equal(r.calls.length, 0);
     assert.equal(r.events.size, 0);
+  }
+});
+
+test('other settings sections and similar prefixes still run registration recovery', () => {
+  for (const path of ['/settings', '/settings/appearance', '/settings/notifications-other']) {
+    const r = runtime({ path });
+    assert.equal(r.calls.length, 1, path);
+    r.cleanup();
   }
 });

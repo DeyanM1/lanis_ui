@@ -7,7 +7,7 @@ import { repairBrowserPushRegistration } from '../utils/browserPush';
 export default function BrowserPushRuntime() {
   const { token, isAuthenticated, user } = useAuth();
   const { pathname } = useLocation();
-  const inactive = pathname.startsWith('/demo') || pathname === '/settings/notifications';
+  const inactive = pathname.startsWith('/demo') || /^\/settings\/+notifications(?:\/|$)/i.test(pathname);
 
   useEffect(() => {
     const native = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
