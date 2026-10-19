@@ -1,3 +1,4 @@
+import { readPersonalCache, writePersonalCache } from '../../utils/accountDataWrites';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { messagesAPI } from '../../services/api';
@@ -42,7 +43,7 @@ const Messages: React.FC = () => {
   const { token } = useAuth();
   const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<MessageHeader[]>(() => {
-    const cached = isDemoRoute() ? null : localStorage.getItem('messages_cache');
+    const cached = isDemoRoute() ? null : readPersonalCache('messages_cache');
     if (!cached) return [];
     try {
       return JSON.parse(cached).map((message: MessageHeader) => ({
@@ -94,7 +95,7 @@ const Messages: React.FC = () => {
   const loadUsernameCache = (): Record<string, string> => {
     if (isDemoRoute()) return {};
     try {
-      const raw = localStorage.getItem(USERNAME_CACHE_KEY);
+      const raw = readPersonalCache(USERNAME_CACHE_KEY);
       if (!raw) return {};
       const parsed: { data: Record<string, string>; ts: number } = JSON.parse(raw);
       if (Date.now() - parsed.ts > USERNAME_CACHE_TTL) {
@@ -105,10 +106,12 @@ const Messages: React.FC = () => {
     } catch { return {}; }
   };
 
+  const usernameCacheGeneration = useRef(captureAccountDataGeneration()).current;
+
   const saveUsernameCache = (data: Record<string, string>) => {
     const cachedUsername = JSON.stringify({ data, ts: Date.now() });
     notifyDemoCacheWrite(USERNAME_CACHE_KEY, cachedUsername);
-    localStorage.setItem(USERNAME_CACHE_KEY, cachedUsername);
+    writePersonalCache(USERNAME_CACHE_KEY, cachedUsername, usernameCacheGeneration);
   };
 
   const usernameCache = useRef<Record<string, string>>(loadUsernameCache());
@@ -182,7 +185,7 @@ const Messages: React.FC = () => {
         if (canWriteAccountData(writeGeneration)) {
           const cachedMessages = JSON.stringify(resolved);
           notifyDemoCacheWrite('messages_cache', cachedMessages);
-          localStorage.setItem('messages_cache', cachedMessages);
+          writePersonalCache('messages_cache', cachedMessages, writeGeneration);
         }
       } else {
         setError('Fehler beim Laden der Nachrichten.');

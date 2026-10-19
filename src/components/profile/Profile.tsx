@@ -1,3 +1,4 @@
+import { readPersonalCache, writePersonalCache } from '../../utils/accountDataWrites';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authAPI } from '../../services/api';
@@ -19,7 +20,7 @@ const Profile: React.FC = () => {
   const { user, token } = useAuth();
   // Cached user profile state
   const [userDetails, setUserDetails] = useState<User | null>(() => {
-    const cached = isDemoRoute() ? null : localStorage.getItem('profile_cache');
+    const cached = isDemoRoute() ? null : readPersonalCache('profile_cache');
     return cached ? JSON.parse(cached) : user;
   });
   const [isUpdating, setIsUpdating] = useState(false);
@@ -61,7 +62,7 @@ const Profile: React.FC = () => {
         if (canWriteAccountData(writeGeneration)) {
           const cachedProfile = JSON.stringify(response.data);
           notifyDemoCacheWrite('profile_cache', cachedProfile);
-          localStorage.setItem('profile_cache', cachedProfile);
+          writePersonalCache('profile_cache', cachedProfile, writeGeneration);
         }
       } else {
         setError('Fehler beim Laden des Benutzerprofils.');

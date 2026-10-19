@@ -1,4 +1,4 @@
-import { CUSTOM_BACKEND_STORAGE_KEY, clearBackendScopedStorage } from './backendConfig';
+import { CUSTOM_BACKEND_STORAGE_KEY, clearBackendScopedStorage, getApiBaseUrl } from './backendConfig';
 
 export const ACCOUNT_DATA_GENERATION_KEY = '__lanis_account_data_generation';
 export const ACCOUNT_DATA_DELETION_EPOCH_KEY = '__lanis_account_deletion_epoch';
@@ -357,4 +357,64 @@ export const purgeDeletedAccountBrowserData = async (): Promise<boolean> => {
   }
   const results = await Promise.allSettled(cleanupTasks);
   return storageClean && results.every(result => result.status === 'fulfilled');
+};
+
+// Personal caches are valid only for the current account and login generation.
+// Legacy unowned values are intentionally treated as cache misses.
+const personalCacheOwner = (): string | null => {
+  try {
+    if (window.location.pathname === '/demo' || window.location.pathname.startsWith('/demo/')) return null;
+    if (!localStorage.getItem('auth_access_token')) return null;
+    const user = JSON.parse(localStorage.getItem('auth_user') || 'null');
+    if (!user?.school_id || !user?.username) return null;
+    return JSON.stringify([getApiBaseUrl(), user.school_id, user.username]);
+  } catch { return null; }
+};
+
+export const readPersonalCache = (key: string): string | null => {
+  try {
+    const owner = personalCacheOwner();
+    const generation = captureAccountDataGeneration();
+    if (!owner || !canWriteAccountData(generation)) return null;
+    const cached = JSON.parse(localStorage.getItem(key) || 'null');
+    return cached?.owner === owner && cached?.generation === generation && typeof cached?.value === 'string'
+      ? cached.value : null;
+  } catch { return null; }
+};
+
+export const writePersonalCache = (key: string, value: string, generation: number): void => {
+  const owner = personalCacheOwner();
+  if (!owner || !canWriteAccountData(generation)) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({ owner, generation, value }));
+  } catch {
+    // Live data remains usable when optional browser caching is unavailable.
+  }
+};
+
+export const clearSignedOutAccountData = (): void => {
+  // Invalidate pending writes before removing credentials or awaiting remote logout.
+  // Account deletion retains its own recovery marker and lifecycle ownership.
+  if (!hasAccountDataDeletionMarker()) {
+    localStorage.setItem(ACCOUNT_DATA_GENERATION_KEY, `${captureAccountDataGeneration() + 1}:logout`);
+  }
+  clearBackendScopedStorage();
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key && (key.startsWith('lanis_preferences:') || [
+      '__demo_storage_snapshot', '__demo_active_session', '__demo_mode',
+      'pinned_modules', 'lanis_timetable_view_mode', 'lanis_preferences_legacy_owner',
+    ].includes(key))) localStorage.removeItem(key);
+  }
+};
+
+// Access-token refresh may rotate storage before React receives the new token.
+// Remember earlier tokens only within their original login generation.
+const accountTokenGenerations = new Map<string, number>();
+export const rememberAccountToken = (token: string): void => {
+  accountTokenGenerations.set(token, captureAccountDataGeneration());
+};
+export const canUseAccountToken = (token: string): boolean => {
+  if (token === localStorage.getItem('auth_access_token')) rememberAccountToken(token);
+  return accountTokenGenerations.get(token) === captureAccountDataGeneration();
 };

@@ -1,3 +1,4 @@
+import { readPersonalCache, writePersonalCache } from '../../utils/accountDataWrites';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBasePath } from '../../contexts/BasePathContext';
@@ -315,7 +316,7 @@ const Courses: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   // Cached courses state
   const [courses, setCourses] = useState<CourseEntry[]>(() => {
-    const cached = isDemoRoute() ? null : localStorage.getItem('courses_cache');
+    const cached = isDemoRoute() ? null : readPersonalCache('courses_cache');
     return cached ? JSON.parse(cached) : [];
   });
   const [isUpdating, setIsUpdating] = useState(false);
@@ -390,7 +391,7 @@ const Courses: React.FC = () => {
         if (canWriteAccountData(writeGeneration)) {
           const cachedCourses = JSON.stringify(courseList);
           notifyDemoCacheWrite('courses_cache', cachedCourses);
-          localStorage.setItem('courses_cache', cachedCourses);
+          writePersonalCache('courses_cache', cachedCourses, writeGeneration);
         }
       } else {
         setError('Fehler beim Laden der Kurse.');
@@ -426,7 +427,7 @@ const Courses: React.FC = () => {
             if (canWriteAccountData(writeGeneration)) {
               const cachedCourses = JSON.stringify(courseList);
               notifyDemoCacheWrite('courses_cache', cachedCourses);
-              localStorage.setItem('courses_cache', cachedCourses);
+              writePersonalCache('courses_cache', cachedCourses, writeGeneration);
             }
             const matchingCourse = courseList.find(course => course.book_id === courseId);
             if (matchingCourse?.name?.trim()) {
@@ -518,7 +519,7 @@ const Courses: React.FC = () => {
       course.entry_id === entryId ? { ...course, homework_done: newDone } : course
     ));
 
-    const cached = localStorage.getItem('courses_cache');
+    const cached = readPersonalCache('courses_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
       const updated = parsed.map((c: CourseEntry) =>
@@ -527,7 +528,7 @@ const Courses: React.FC = () => {
       if (canWriteAccountData(writeGeneration)) {
         const cachedCourses = JSON.stringify(updated);
         notifyDemoCacheWrite('courses_cache', cachedCourses);
-        localStorage.setItem('courses_cache', cachedCourses);
+        writePersonalCache('courses_cache', cachedCourses, writeGeneration);
       }
     }
 
