@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowDownTrayIcon,
@@ -413,7 +413,9 @@ const Submissions: React.FC = () => {
   const previousDetailIdRef = useRef(id);
   const detailNavigationPending = Boolean(id) && previousDetailIdRef.current !== id;
   const currentIdRef = useRef(id);
-  currentIdRef.current = id;
+  useLayoutEffect(() => {
+    currentIdRef.current = id;
+  }, [id]);
 
   const listPath = `${basePath}/courses/submissions`;
   const openSubmission = (submission: Submission) => navigate(`${listPath}/${encodeURIComponent(submission.detail_ref || submission.id)}`);
