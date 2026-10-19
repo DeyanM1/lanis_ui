@@ -152,7 +152,10 @@ const mockVideoRooms = [
     status_label: 'Raum betreten',
     join_url: 'https://example.invalid/video/mathematik-9c',
     can_join: true,
-    links: [{ label: 'Raumregeln', url: 'https://example.invalid/video/regeln' }],
+    links: [
+      { label: 'Link öffnen', url: 'https://start.schulportal.hessen.de/meinunterricht.php?a=sus_view&id=b2' },
+      { label: 'Raumregeln', url: 'https://example.invalid/video/regeln' },
+    ],
   },
   {
     id: 'klassenrat-9c',
