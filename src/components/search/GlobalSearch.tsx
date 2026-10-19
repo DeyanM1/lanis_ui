@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { authAPI, messagesAPI, calendarAPI, coursesAPI, appsAPI, searchAPI, studyGroupsAPI, timetableAPI } from '../../services/api';
+import { authAPI, messagesAPI, calendarAPI, coursesAPI, appsAPI, searchAPI, studyGroupsAPI, timetableAPI, dateiverteilungAPI } from '../../services/api';
 import type { SemanticSearchResult } from '../../services/api';
 import { readModulesCache } from '../../utils/moduleCache';
 import type { CachedModule } from '../../utils/moduleCache';
@@ -16,9 +16,11 @@ import {
   Cog6ToothIcon,
   ClipboardDocumentListIcon,
   FolderIcon,
+  DocumentDuplicateIcon,
   ArrowPathIcon,
   ClockIcon,
   UserGroupIcon,
+  VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 
 interface SearchItem {
@@ -36,8 +38,10 @@ interface GlobalSearchProps {
   onClose: () => void;
   basePath?: string;
   hasNativeDateispeicher?: boolean;
+  hasNativeDateiverteilung?: boolean;
   hasNativeSubstitutionPlan?: boolean;
   hasDsbModule?: boolean;
+  hasVideokonferenzModule?: boolean;
 }
 
 interface NavigationItem {
@@ -61,6 +65,8 @@ function moduleInAppHref(
   const moduleLinks = `${module.url || ''} ${module.direct_url || ''}`.toLowerCase();
   const moduleName = String(module.name || '').toLowerCase();
   const isDateispeicher = moduleName.includes('dateispeicher') || moduleLinks.includes('/dateispeicher.php');
+  const isDateiverteilung = moduleName.includes('dateiverteilung') || moduleLinks.includes('/dateiverteilung.php');
+  const isVideokonferenz = moduleName.includes('videokonferenz') || moduleLinks.includes('/videokonferenz.php');
   const isWahlen = moduleName.includes('wahlen') || moduleLinks.includes('/oberstufenwahl.php');
   const isDsbModule = moduleName.includes('dsb') || moduleLinks.includes('dsb');
   const isNativeSubstitutionPlan = !isDsbModule && (
@@ -69,8 +75,11 @@ function moduleInAppHref(
   const nativePlanHref = planNavigation.find(item => item.href.endsWith('/vertretungsplan'))?.href;
   const dsbHref = planNavigation.find(item => item.href.endsWith('/dsb'))?.href;
   const dateispeicherHref = planNavigation.find(item => item.href.endsWith('/dateispeicher'))?.href;
+  const dateiverteilungHref = planNavigation.find(item => item.href.endsWith('/dateiverteilung'))?.href;
   const wahlenHref = `${basePath}/wahlen`;
   return (isDateispeicher && (dateispeicherHref || `${basePath}/dateispeicher`))
+    || (isDateiverteilung && (dateiverteilungHref || `${basePath}/dateiverteilung`))
+    || (isVideokonferenz && `${basePath}/videokonferenz`)
     || (isWahlen && wahlenHref)
     || (isNativeSubstitutionPlan && (nativePlanHref || `${basePath}/vertretungsplan`))
     || (isDsbModule && (dsbHref || `${basePath}/dsb`))
@@ -83,6 +92,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   Unterricht: AcademicCapIcon,
   Kalender: CalendarDaysIcon,
   Module: HomeIcon,
+  Dateiverteilung: DocumentDuplicateIcon,
   Vertretungsplan: ClipboardDocumentListIcon,
   Stundenplan: ClockIcon,
   Lerngruppen: UserGroupIcon,
@@ -275,8 +285,10 @@ export default function GlobalSearch({
   onClose,
   basePath = '',
   hasNativeDateispeicher = false,
+  hasNativeDateiverteilung = false,
   hasNativeSubstitutionPlan = false,
   hasDsbModule = false,
+  hasVideokonferenzModule = false,
 }: GlobalSearchProps) {
   const { token, user } = useAuth();
   const navigate = useNavigate();
@@ -292,9 +304,13 @@ export default function GlobalSearch({
   const [semanticResults, setSemanticResults] = useState<SearchItem[]>([]);
 
   const planNavigation = useMemo<NavigationItem[]>(() => {
-    const moduleItems: NavigationItem[] = hasNativeDateispeicher
-      ? [{ name: 'Dateispeicher', href: `${basePath}/dateispeicher`, icon: FolderIcon, cat: 'Module' }]
-      : [];
+    const moduleItems: NavigationItem[] = [
+      ...(hasNativeDateispeicher ? [{ name: 'Dateispeicher', href: `${basePath}/dateispeicher`, icon: FolderIcon, cat: 'Module' }] : []),
+      ...(hasNativeDateiverteilung ? [{ name: 'Dateiverteilung', href: `${basePath}/dateiverteilung`, icon: DocumentDuplicateIcon, cat: 'Module' }] : []),
+    ];
+    if (hasVideokonferenzModule) {
+      moduleItems.push({ name: 'Videokonferenz', href: `${basePath}/videokonferenz`, icon: VideoCameraIcon, cat: 'Module' });
+    }
     if (hasNativeSubstitutionPlan) {
       return [
         ...moduleItems,
@@ -305,7 +321,7 @@ export default function GlobalSearch({
     return hasDsbModule
       ? [...moduleItems, { name: 'Vertretungsplan', href: `${basePath}/dsb`, icon: ClipboardDocumentListIcon, cat: 'Vertretungsplan' }]
       : moduleItems;
-  }, [basePath, hasDsbModule, hasNativeDateispeicher, hasNativeSubstitutionPlan]);
+  }, [basePath, hasDsbModule, hasNativeDateispeicher, hasNativeDateiverteilung, hasNativeSubstitutionPlan, hasVideokonferenzModule]);
 
   const cachedModules = readModulesCache(user);
   const cacheResults = useMemo(
@@ -430,6 +446,16 @@ export default function GlobalSearch({
           }));
           return [...groups, ...exams];
         }),
+        ...(hasNativeDateiverteilung ? [dateiverteilungAPI.getOverview(token, false, controller.signal).then(res => (
+          !res.success ? [] : res.distributions.filter(distribution => searchText(query, distribution)).map(distribution => ({
+            id: `api-distribution-${distribution.id}`,
+            title: distribution.title,
+            subtitle: [distribution.source, distribution.created_at].filter(Boolean).join(' · '),
+            category: 'Dateiverteilung',
+            icon: DocumentDuplicateIcon,
+            href: `${basePath}/dateiverteilung`,
+          }))
+        ))] : []),
         authAPI.getUserProfile(token, controller.signal).then(res => {
           if (!res.success || !searchText(query, res.data)) return [];
           return [{ id: 'api-profile', title: 'Dein Profil', subtitle: 'Profildaten', category: 'Profil', icon: UserIcon, href: '/profile' }];
@@ -450,7 +476,7 @@ export default function GlobalSearch({
       controller.abort();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, token]);
+  }, [basePath, hasNativeDateiverteilung, planNavigation, query, token]);
 
   // ── Semantic search (parallel to Tier 2) ────────────────────────
 

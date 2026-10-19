@@ -897,6 +897,36 @@ export interface VertretungsplanOptionsResponse {
   error?: string;
 }
 
+export type VideoRoomStatus = 'open' | 'waiting' | 'closed' | 'unknown';
+
+export interface VideoRoomLink {
+  label: string;
+  url: string;
+}
+
+export interface VideoRoom {
+  id: string;
+  name: string;
+  teachers: string[];
+  status: VideoRoomStatus;
+  status_label: string;
+  join_url: string | null;
+  can_join: boolean;
+  links: VideoRoomLink[];
+}
+
+export interface VideoRoomsResponse {
+  success: boolean;
+  available: boolean;
+  source: 'schulportal';
+  status_live: boolean;
+  rooms: VideoRoom[];
+  count: number;
+  open_count: number;
+  updated_label?: string | null;
+  error?: string;
+}
+
 export interface CustomLesson {
   /** Backwards-compatible ISO date whose weekday identifies the recurring day. */
   date: string;
@@ -967,6 +997,39 @@ export interface DateispeicherSearchResponse {
   query: string;
   results: unknown;
   source?: string;
+  error?: string;
+}
+
+// Native Schulportal targeted file-distribution types
+export interface DateiverteilungFile {
+  id: string;
+  name: string;
+  size?: string;
+  download_url: string;
+}
+
+export interface DateiverteilungLink {
+  label: string;
+  url: string;
+}
+
+export interface DateiverteilungDistribution {
+  id: string;
+  title: string;
+  description?: string;
+  source: string;
+  created_at?: string;
+  unread: boolean;
+  files: DateiverteilungFile[];
+  links: DateiverteilungLink[];
+}
+
+export interface DateiverteilungResponse {
+  success: boolean;
+  distributions: DateiverteilungDistribution[];
+  distribution_count: number;
+  file_count: number;
+  unread_count: number;
   error?: string;
 }
 
