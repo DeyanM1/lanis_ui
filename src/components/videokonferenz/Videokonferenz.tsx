@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { useBasePath } from '../../contexts/BasePathContext';
 import {
   ArrowPathIcon,
   ArrowTopRightOnSquareIcon,
@@ -37,15 +39,39 @@ function safeHttpsUrl(value: string | null | undefined): string | null {
   }
 }
 
+function internalCoursePath(links: VideoRoom['links']): string | null {
+  for (const link of links) {
+    const safeUrl = safeHttpsUrl(link.url);
+    if (!safeUrl) continue;
+    const url = new URL(safeUrl);
+    if (!['start.schulportal.hessen.de', 'schulportal.hessen.de'].includes(url.hostname)
+      || url.pathname !== '/meinunterricht.php'
+      || url.searchParams.getAll('a').length !== 1
+      || url.searchParams.get('a') !== 'sus_view'
+      || url.searchParams.getAll('id').length !== 1) continue;
+    const id = url.searchParams.get('id') || '';
+    if (/^[a-zA-Z0-9_-]+$/.test(id)) return `/courses/${encodeURIComponent(id)}`;
+  }
+  return null;
+}
+
 export const RoomCard: React.FC<{ room: VideoRoom; statusLive: boolean }> = ({ room, statusLive }) => {
-  const joinUrl = statusLive && room.can_join ? safeHttpsUrl(room.join_url) : null;
+  const basePath = useBasePath();
+  const coursePath = internalCoursePath(room.links);
+  const joinUrl = statusLive && room.status === 'open' && room.can_join ? safeHttpsUrl(room.join_url) : null;
   const status = statusLive ? room.status : 'unknown';
 
   return (
     <article className="card">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-surface-900 dark:text-surface-100">{room.name}</h2>
+          <h2 className="text-base font-semibold text-surface-900 dark:text-surface-100">
+            {coursePath ? (
+              <Link to={`${basePath}${coursePath}`} className="hover:text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:text-primary-400">
+                {room.name}
+              </Link>
+            ) : room.name}
+          </h2>
           {room.teachers.length > 0 && (
             <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{room.teachers.join(' · ')}</p>
           )}
@@ -60,19 +86,6 @@ export const RoomCard: React.FC<{ room: VideoRoom; statusLive: boolean }> = ({ r
           </a>
         )}
       </div>
-      {room.links.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-          {room.links.map(link => {
-            const url = safeHttpsUrl(link.url);
-            return url ? (
-              <a key={`${link.label}-${url}`} href={url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-primary-600 hover:underline dark:text-primary-400">
-                {link.label}<ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-              </a>
-            ) : null;
-          })}
-        </div>
-      )}
     </article>
   );
 };
