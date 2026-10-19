@@ -410,6 +410,8 @@ const Submissions: React.FC = () => {
   const [error, setError] = useState('');
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
+  const previousDetailIdRef = useRef(id);
+  const detailNavigationPending = Boolean(id) && previousDetailIdRef.current !== id;
   const currentIdRef = useRef(id);
   currentIdRef.current = id;
 
@@ -455,6 +457,7 @@ const Submissions: React.FC = () => {
 
   useEffect(() => {
     const controller = new AbortController();
+    previousDetailIdRef.current = id;
     setDetail(null);
     if (id) void loadDetail(id, controller.signal);
     else {
@@ -559,7 +562,7 @@ const Submissions: React.FC = () => {
             {!loading && !error && <p role="status" className="sr-only">{visibleSubmissions.length} {visibleSubmissions.length === 1 ? 'Abgabe angezeigt' : 'Abgaben angezeigt'}</p>}
           </div>
         </div>
-      ) : loading ? (
+      ) : loading || detailNavigationPending ? (
         <div className="mx-auto max-w-5xl space-y-4"><div className="h-10 w-2/3 animate-pulse rounded bg-surface-200 dark:bg-surface-800" /><div className="card h-96 animate-pulse bg-surface-100 dark:bg-surface-900" /></div>
       ) : (
         <div className="mx-auto max-w-5xl"><div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/30 dark:text-red-200"><ExclamationCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />{error || 'Die Abgabe konnte nicht geladen werden.'}</div><button type="button" className="btn btn-secondary mt-4" onClick={() => navigate(listPath)}>Zurück zu den Abgaben</button></div>
