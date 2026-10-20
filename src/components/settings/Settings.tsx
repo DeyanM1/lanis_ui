@@ -132,12 +132,6 @@ const settingsSections: Array<{
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }> = [
   {
-    id: 'account',
-    title: 'Datenschutz und Konto',
-    description: 'Deine LANIS-Daten exportieren oder dein LANIS-Konto löschen.',
-    icon: ServerStackIcon,
-  },
-  {
     id: 'appearance',
     title: 'Erscheinungsbild',
     description: 'Farben, Dark Mode und die Oberfläche von Lanis.',
@@ -168,6 +162,12 @@ const settingsSections: Array<{
     icon: ClipboardDocumentListIcon,
   },
   {
+    id: 'sidebar',
+    title: 'Seitenleiste',
+    description: 'Reihenfolge der Einträge in der Seitenleiste anpassen.',
+    icon: Bars3Icon,
+  },
+  {
     id: 'notifications',
     title: 'Benachrichtigungen',
     description: 'Push-Mitteilungen für Nachrichten und den Vertretungsplan verwalten.',
@@ -185,11 +185,12 @@ const settingsSections: Array<{
     description: 'Lanis installieren und Geräteoptionen ansehen.',
     icon: DevicePhoneMobileIcon,
   },
+
   {
-    id: 'sidebar',
-    title: 'Seitenleiste',
-    description: 'Reihenfolge der Einträge in der Seitenleiste anpassen.',
-    icon: Bars3Icon,
+    id: 'account',
+    title: 'Datenschutz und Konto',
+    description: 'Deine LANIS-Daten exportieren oder dein LANIS-Konto löschen.',
+    icon: ServerStackIcon,
   },
 ];
 
@@ -637,7 +638,7 @@ const SettingsIndex: React.FC<{
   sections: typeof settingsSections;
 }> = ({ basePath, sections }) => (
   <div className="divide-y divide-surface-100 overflow-hidden rounded-xl border border-surface-200 bg-white dark:divide-surface-800 dark:border-surface-800 dark:bg-surface-900">
-    {sections.map(item => (
+    {sections.filter(item => item.id !== 'account').map(item => (
       <Link
         key={item.id}
         to={`${basePath}/settings/${item.id}`}
@@ -653,19 +654,6 @@ const SettingsIndex: React.FC<{
         <ChevronRightIcon className="h-5 w-5 shrink-0 text-surface-300 group-hover:text-surface-500 dark:text-surface-600" />
       </Link>
     ))}
-    <Link
-      to="/set-custom-backend"
-      className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/70 sm:px-5"
-    >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300">
-        <ServerStackIcon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <h2 className="font-medium text-surface-900 dark:text-white">Backend-Adresse</h2>
-        <p className="mt-0.5 text-sm text-surface-500">Das Backend für dieses Gerät konfigurieren.</p>
-      </div>
-      <ChevronRightIcon className="h-5 w-5 shrink-0 text-surface-300 group-hover:text-surface-500 dark:text-surface-600" />
-    </Link>
     {!basePath && (
       <Link
         to="/onboarding"
@@ -681,6 +669,35 @@ const SettingsIndex: React.FC<{
         <ChevronRightIcon className="h-5 w-5 shrink-0 text-surface-300 group-hover:text-surface-500 dark:text-surface-600" />
       </Link>
     )}
+    <Link
+      to="/set-custom-backend"
+      className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/70 sm:px-5"
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300">
+        <ServerStackIcon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h2 className="font-medium text-surface-900 dark:text-white">Backend-Adresse</h2>
+        <p className="mt-0.5 text-sm text-surface-500">Das Backend für dieses Gerät konfigurieren.</p>
+      </div>
+      <ChevronRightIcon className="h-5 w-5 shrink-0 text-surface-300 group-hover:text-surface-500 dark:text-surface-600" />
+    </Link>
+    {sections.filter(item => item.id === 'account').map(item => (
+      <Link
+        key={item.id}
+        to={`${basePath}/settings/${item.id}`}
+        className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800/70 sm:px-5"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300">
+          <item.icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-medium text-surface-900 dark:text-white">{item.title}</h2>
+          <p className="mt-0.5 text-sm text-surface-500">{item.description}</p>
+        </div>
+        <ChevronRightIcon className="h-5 w-5 shrink-0 text-surface-300 group-hover:text-surface-500 dark:text-surface-600" />
+      </Link>
+    ))}
   </div>
 );
 
