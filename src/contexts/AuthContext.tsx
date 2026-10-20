@@ -4,6 +4,7 @@ import { authAPI, notificationsAPI, unsubscribeBrowserPushSubscription } from '.
 import {
   clearSignedOutAccountData,
   rememberAccountToken,
+  isSameAccountIdentity,
   ACCOUNT_DATA_DELETION_RECOVERY_KEY,
   ACCOUNT_DATA_GENERATION_KEY,
   confirmAccountDataDeletion,
@@ -140,7 +141,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         TOKEN_EXPIRES_KEY,
         USER_KEY,
       ];
-      if (event.key === USER_KEY && event.newValue !== null) {
+      if (event.key === USER_KEY && event.newValue !== null
+        && !isSameAccountIdentity(event.oldValue, event.newValue)) {
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
@@ -242,7 +244,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.refreshToken(refreshTokenValue);
 
-      if (!canWriteAccountData(writeGeneration)) return false;
+      if (!canWriteAccountData(writeGeneration)
+        || localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshTokenValue) return false;
 
       const expiresAt = Date.now() + response.expires_in * 1000;
 
@@ -259,12 +262,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async (shouldClearStorage: () => boolean = () => true) => {
     const clearStorage = shouldClearStorage();
-    const logoutToken = clearStorage ? localStorage.getItem(ACCESS_TOKEN_KEY) || token : token;
-    if (clearStorage) clearSignedOutAccountData();
-    const clearedGeneration = captureAccountDataGeneration();
+    // Clear React state even when access to browser storage has been revoked.
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    let logoutToken = token;
+    try {
+      if (clearStorage) logoutToken = localStorage.getItem(ACCESS_TOKEN_KEY) || token;
+    } catch {
+      // The context still holds the token needed for best-effort remote logout.
+    }
+    if (clearStorage) clearSignedOutAccountData();
+    const clearedGeneration = captureAccountDataGeneration();
     try {
       if (logoutToken) {
         try {

@@ -320,7 +320,7 @@ async function refreshAccessToken(): Promise<boolean> {
       refresh_token: refreshTokenValue,
     } as TokenRefreshRequest);
 
-    if (!canWriteAccountData(writeGeneration)) return false;
+    if (!canWriteAccountData(writeGeneration) || getRefreshToken() !== refreshTokenValue) return false;
     const expiresAt = Date.now() + response.data.expires_in * 1000;
     localStorage.setItem(ACCESS_TOKEN_KEY, response.data.access_token);
     localStorage.setItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
@@ -1290,7 +1290,7 @@ apiClient.interceptors.response.use(
               refresh_token: refreshTokenValue,
             } as TokenRefreshRequest);
 
-            if (!canWriteAccountData(writeGeneration)) {
+            if (!canWriteAccountData(writeGeneration) || getRefreshToken() !== refreshTokenValue) {
               return Promise.reject(error);
             }
             const expiresAt = Date.now() + refreshResponse.data.expires_in * 1000;

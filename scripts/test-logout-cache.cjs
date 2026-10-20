@@ -122,5 +122,42 @@ function deferredRequest(status = 200, token = storage.getItem('auth_access_toke
   assert.equal(storage.getItem('messages_cache'), null);
   assert.equal(storage.getItem('auth_user'), null);
   assert.equal(window.location.href, '/login');
+  // Quota failures must not stop cleanup or let a pending response restore auth/data.
+  login('quota-A');
+  const quotaGeneration = lifecycle.captureAccountDataGeneration();
+  lifecycle.writePersonalCache('profile_cache', 'quota-private', quotaGeneration);
+  const quotaPending = deferredRequest();
+  await quotaPending.started;
+  const normalSetItem = storage.setItem;
+  let markerAttempts = 0;
+  storage.setItem = (key, value) => {
+    if (key === lifecycle.ACCOUNT_DATA_GENERATION_KEY) {
+      markerAttempts += 1;
+      throw new Error('QuotaExceededError');
+    }
+    normalSetItem(key, value);
+  };
+  assert.doesNotThrow(() => lifecycle.clearSignedOutAccountData());
+  assert.equal(storage.getItem('auth_user'), null);
+  assert.equal(storage.getItem('auth_access_token'), null);
+  assert.equal(storage.getItem('profile_cache'), null);
+  assert.equal(markerAttempts, 2, 'Retry the marker after freeing cache space');
+  assert(!lifecycle.canWriteAccountData(quotaGeneration));
+  storage.setItem = normalSetItem;
+  login('quota-B');
+  quotaPending.finish();
+  await assert.rejects(quotaPending.result(), axios.isCancel);
+  lifecycle.writePersonalCache('profile_cache', 'late-quota-A', quotaGeneration);
+  assert.equal(storage.getItem('profile_cache'), null);
+  assert.equal(storage.getItem('auth_access_token'), 'quota-B-token');
+  // Same-account profile enrichment must not discard another tab's unsaved work.
+  const identity = user => JSON.stringify(user);
+  const a = { school_id: '123', username: 'A' };
+  assert(lifecycle.isSameAccountIdentity(identity(a), identity({ ...a, display_name: 'Updated profile' })));
+  assert(!lifecycle.isSameAccountIdentity(identity(a), identity({ ...a, username: 'B' })));
+  assert(!lifecycle.isSameAccountIdentity(identity(a), identity({ ...a, school_id: '456' })));
+  assert(!lifecycle.isSameAccountIdentity(null, identity(a)));
+  assert(!lifecycle.isSameAccountIdentity(identity(a), '{invalid'));
+  assert(!lifecycle.isSameAccountIdentity('{}', '{}'));
   console.log('Logout/account cache and real Axios interceptor regression checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
