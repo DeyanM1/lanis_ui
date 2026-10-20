@@ -12,6 +12,9 @@ import {
 import { getMockResponse } from '../components/demo/mockApi';
 import { DEFAULT_API_BASE_URL, getApiBaseUrl } from '../utils/backendConfig';
 import {
+  clearSignedOutAccountData,
+  rememberAccountToken,
+  canUseAccountToken,
   canWriteAccountData,
   captureAccountDataGeneration,
   isAccountDataDeletionInProgress,
@@ -307,6 +310,8 @@ let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
   const writeGeneration = captureAccountDataGeneration();
+  const currentAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (currentAccessToken) rememberAccountToken(currentAccessToken);
   const refreshTokenValue = getRefreshToken();
   if (!refreshTokenValue) return false;
 
@@ -315,7 +320,7 @@ async function refreshAccessToken(): Promise<boolean> {
       refresh_token: refreshTokenValue,
     } as TokenRefreshRequest);
 
-    if (!canWriteAccountData(writeGeneration)) return false;
+    if (!canWriteAccountData(writeGeneration) || getRefreshToken() !== refreshTokenValue) return false;
     const expiresAt = Date.now() + response.data.expires_in * 1000;
     localStorage.setItem(ACCESS_TOKEN_KEY, response.data.access_token);
     localStorage.setItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
@@ -1209,9 +1214,18 @@ export const searchAPI = {
   },
 };
 
+// Keep each response and retry attached to the session that initiated it.
+const requestGenerations = new WeakMap<object, number>();
+const staleRequest = (config: object | undefined): boolean => {
+  const generation = config && requestGenerations.get(config);
+  return generation !== undefined && generation !== captureAccountDataGeneration();
+};
+
 // Request interceptor - mock all API calls in demo mode + auto-refresh token
 apiClient.interceptors.request.use(
   async (config) => {
+    const generation = captureAccountDataGeneration();
+    requestGenerations.set(config, generation);
     // Demo mode: mock all responses
     if (localStorage.getItem('__demo_mode') === '1' && window.location.pathname.startsWith('/demo')) {
       config.adapter = (mockConfig: any) => {
@@ -1229,13 +1243,17 @@ apiClient.interceptors.request.use(
     }
 
     // Auto-refresh access token if it has an X-Session-Token header
-    if (config.headers?.['X-Session-Token']) {
+    if (config.headers?.['X-Session-Token'] && !['/logout', '/notifications/unsubscribe'].includes(config.url || '')) {
+      if (!canUseAccountToken(String(config.headers['X-Session-Token']))) {
+        throw new axios.CanceledError('Session changed');
+      }
       const freshToken = await ensureValidToken();
       if (freshToken) {
         config.headers['X-Session-Token'] = freshToken;
       }
     }
 
+    if (generation !== captureAccountDataGeneration()) throw new axios.CanceledError('Session changed');
     return config;
   },
   (error) => {
@@ -1246,9 +1264,12 @@ apiClient.interceptors.request.use(
 // Response interceptor to handle 401 — try refresh once then redirect
 apiClient.interceptors.response.use(
   (response) => {
+    if (staleRequest(response.config)) throw new axios.CanceledError('Session changed');
     return response;
   },
   async (error) => {
+    if (staleRequest(error.config)) return Promise.reject(new axios.CanceledError('Session changed'));
+    if (['/logout', '/notifications/unsubscribe'].includes(error.config?.url || '')) return Promise.reject(error);
     if (error.response?.status === 401 && localStorage.getItem('__demo_mode') !== '1') {
       if (isAccountDataDeletionInProgress()) return Promise.reject(error);
       // Don't try to refresh if the request was already to /auth/refresh
@@ -1269,7 +1290,7 @@ apiClient.interceptors.response.use(
               refresh_token: refreshTokenValue,
             } as TokenRefreshRequest);
 
-            if (!canWriteAccountData(writeGeneration)) {
+            if (!canWriteAccountData(writeGeneration) || getRefreshToken() !== refreshTokenValue) {
               return Promise.reject(error);
             }
             const expiresAt = Date.now() + refreshResponse.data.expires_in * 1000;
@@ -1296,17 +1317,17 @@ apiClient.interceptors.response.use(
         }
       }
 
+      // A failed refresh may belong to an account that has since signed out.
+      if (staleRequest(error.config)) return Promise.reject(new axios.CanceledError('Session changed'));
+      clearSignedOutAccountData();
+      const signedOutGeneration = captureAccountDataGeneration();
       // Clear auth state and redirect to login
       try {
         await unsubscribeBrowserPushSubscription();
       } catch (cleanupError) {
         console.warn('Failed to remove push subscription after authentication loss:', cleanupError);
       }
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      localStorage.removeItem(TOKEN_EXPIRES_KEY);
-      localStorage.removeItem('auth_user');
-      window.location.href = '/login';
+      if (captureAccountDataGeneration() === signedOutGeneration) window.location.href = '/login';
     }
     return Promise.reject(error);
   }

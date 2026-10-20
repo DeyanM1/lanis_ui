@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { AuthContextType, LoginRequest, User } from '../types';
 import { authAPI, notificationsAPI, unsubscribeBrowserPushSubscription } from '../services/api';
 import {
+  clearSignedOutAccountData,
+  rememberAccountToken,
+  isSameAccountIdentity,
   ACCOUNT_DATA_DELETION_RECOVERY_KEY,
   ACCOUNT_DATA_GENERATION_KEY,
   confirmAccountDataDeletion,
@@ -89,6 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const savedToken = localStorage.getItem(ACCESS_TOKEN_KEY);
           const savedUser = localStorage.getItem(USER_KEY);
           if (savedToken && savedUser) {
+            rememberAccountToken(savedToken);
             setToken(savedToken);
             setUser(JSON.parse(savedUser));
             setIsAuthenticated(true);
@@ -137,6 +141,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         TOKEN_EXPIRES_KEY,
         USER_KEY,
       ];
+      if (event.key === USER_KEY && event.newValue !== null
+        && !isSameAccountIdentity(event.oldValue, event.newValue)) {
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        window.location.reload();
+        return;
+      }
       if (event.key !== null && !(authKeys.includes(event.key) && event.newValue === null)) {
         return;
       }
@@ -177,6 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(basicUser);
         setIsAuthenticated(true);
         localStorage.setItem(ACCESS_TOKEN_KEY, response.access_token);
+        rememberAccountToken(response.access_token);
         localStorage.setItem(REFRESH_TOKEN_KEY, response.refresh_token);
         localStorage.setItem(TOKEN_EXPIRES_KEY, expiresAt.toString());
         localStorage.setItem(USER_KEY, JSON.stringify(basicUser));
@@ -223,13 +236,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshToken = useCallback(async (): Promise<boolean> => {
     const writeGeneration = captureAccountDataGeneration();
+    const currentAccessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (currentAccessToken) rememberAccountToken(currentAccessToken);
     const refreshTokenValue = localStorage.getItem(REFRESH_TOKEN_KEY);
     if (!refreshTokenValue) return false;
 
     try {
       const response = await authAPI.refreshToken(refreshTokenValue);
 
-      if (!canWriteAccountData(writeGeneration)) return false;
+      if (!canWriteAccountData(writeGeneration)
+        || localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshTokenValue) return false;
 
       const expiresAt = Date.now() + response.expires_in * 1000;
 
@@ -245,8 +261,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const logout = async (shouldClearStorage: () => boolean = () => true) => {
+    const clearStorage = shouldClearStorage();
+    // Clear React state even when access to browser storage has been revoked.
+    setToken(null);
+    setUser(null);
+    setIsAuthenticated(false);
+    let logoutToken = token;
     try {
-      if (token) {
+      if (clearStorage) logoutToken = localStorage.getItem(ACCESS_TOKEN_KEY) || token;
+    } catch {
+      // The context still holds the token needed for best-effort remote logout.
+    }
+    if (clearStorage) clearSignedOutAccountData();
+    const clearedGeneration = captureAccountDataGeneration();
+    try {
+      if (logoutToken) {
         try {
           const registration = 'serviceWorker' in navigator
             ? await navigator.serviceWorker.getRegistration()
@@ -254,7 +283,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const subscription = await registration?.pushManager.getSubscription();
           if (subscription) {
             try {
-              const response = await notificationsAPI.unregisterSubscription(token, subscription.endpoint);
+              const response = await notificationsAPI.unregisterSubscription(logoutToken, subscription.endpoint);
               if (!response.success) {
                 console.warn('Push subscription cleanup during logout was rejected.');
               }
@@ -271,19 +300,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (error) {
           console.warn('Failed to remove push subscription during logout:', error);
         }
-        await authAPI.logout(token);
+        await authAPI.logout(logoutToken);
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      setToken(null);
-      setUser(null);
-      setIsAuthenticated(false);
-      if (shouldClearStorage()) {
-        localStorage.removeItem(ACCESS_TOKEN_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
-        localStorage.removeItem(TOKEN_EXPIRES_KEY);
-        localStorage.removeItem(USER_KEY);
+      // A later login owns its own state; delayed remote logout must not clear it.
+      if (captureAccountDataGeneration() === clearedGeneration && shouldClearStorage()) {
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
       }
     }
   };
