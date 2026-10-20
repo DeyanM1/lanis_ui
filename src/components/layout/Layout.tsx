@@ -166,10 +166,9 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
     'study-groups': { name: 'Lerngruppen', href: `${basePath}/study-groups`, icon: UserGroupIcon },
     calendar: { name: 'Kalender', href: `${basePath}/calendar`, icon: CalendarDaysIcon },
     profile: { name: 'Profil', href: `${basePath}/profile`, icon: UserIcon },
-    settings: { name: 'Einstellungen', href: `${basePath}/settings`, icon: Cog6ToothIcon },
   } satisfies Record<SidebarItemId, { name: string; href: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }>;
   const availableItems = new Set<SidebarItemId>([
-    'search', 'divider', 'dashboard', 'messages', 'courses', 'timetable', 'study-groups', 'calendar', 'profile', 'settings',
+    'search', 'divider', 'dashboard', 'messages', 'courses', 'timetable', 'study-groups', 'calendar', 'profile',
     ...(hasNativeDateispeicher ? ['dateispeicher' as const] : []),
     ...(hasNativeDateiverteilung ? ['dateiverteilung' as const] : []),
     ...(hasNativeSubstitutionPlan ? ['vertretungsplan' as const] : []),
@@ -426,6 +425,18 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
                 </span>
               </button>
             )}
+            <Link
+              to={`${basePath}/settings`}
+              className={`nav-link ${isCollapsed ? 'mx-auto h-10 w-10 justify-center gap-0 px-0' : ''} ${location.pathname === `${basePath}/settings` || location.pathname.startsWith(`${basePath}/settings/`) ? 'nav-link-active' : ''}`}
+              title={isCollapsed ? 'Einstellungen' : undefined}
+              aria-label="Einstellungen"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <Cog6ToothIcon className="nav-link-icon" />
+              <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-300 ${isCollapsed ? 'max-w-0 opacity-0' : 'max-w-48 opacity-100'}`}>
+                Einstellungen
+              </span>
+            </Link>
             <div className="relative">
               {showLogoutConfirmation && (
                 <div
