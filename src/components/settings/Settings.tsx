@@ -47,6 +47,7 @@ import {
   MoonIcon,
   PaintBrushIcon,
   ServerStackIcon,
+  UserCircleIcon,
   Squares2X2Icon,
   SunIcon,
   SparklesIcon,
@@ -190,7 +191,7 @@ const settingsSections: Array<{
     id: 'account',
     title: 'Datenschutz und Konto',
     description: 'Deine LANIS-Daten exportieren oder dein LANIS-Konto löschen.',
-    icon: ServerStackIcon,
+    icon: UserCircleIcon,
   },
 ];
 
