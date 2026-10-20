@@ -231,7 +231,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
           <MagnifyingGlassIcon className="h-5 w-5" />
         </button>
       </div>
-      <main ref={mainRef} className={'flex-1 min-h-0 overflow-y-auto focus:outline-none pt-14 md:pt-0 transition-[margin] duration-300 ease-out ' + (isSidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-64')}>
+      <main ref={mainRef} className={'flex-1 min-h-0 min-w-0 overflow-y-auto focus:outline-none pt-14 md:pt-0 transition-[margin] duration-300 ease-out ' + (isSidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-64')}>
         <BasePathProvider basePath={basePath}>
           <div className="animate-fade-in">
             {!isDemo && <OutageNotice />}
@@ -298,7 +298,7 @@ const Layout: React.FC<LayoutProps> = ({ children, basePath = '' }) => {
           >
             <AppIcon alt="Schulportal" className={`${isCollapsed ? 'h-10 w-10' : 'h-9 w-9'} rounded-xl transition-opacity duration-200 ${isCollapsed ? 'group-hover:opacity-0' : ''}`} />
             <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-32 opacity-100'}`}>
-              <h1 className="whitespace-nowrap text-base font-semibold text-surface-900 dark:text-surface-100 tracking-tight">Schulportal</h1>
+              <span className="whitespace-nowrap text-base font-semibold text-surface-900 dark:text-surface-100 tracking-tight">Schulportal</span>
               <p className="whitespace-nowrap text-[11px] text-surface-500 dark:text-surface-400 font-medium tracking-wide uppercase">Hessen</p>
             </div>
             {isCollapsed && (
