@@ -1,3 +1,4 @@
+import { useCachedState } from '../../hooks/useCachedState';
 import { readPersonalCache, writePersonalCache } from '../../utils/accountDataWrites';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,22 +43,19 @@ interface ConversationParticipant {
 const Messages: React.FC = () => {
   const { token } = useAuth();
   const [searchParams] = useSearchParams();
-  const [messages, setMessages] = useState<MessageHeader[]>(() => {
-    const cached = isDemoRoute() ? null : readPersonalCache('messages_cache');
-    if (!cached) return [];
+  const [messages, setMessages, hasMessages] = useCachedState<MessageHeader[]>('messages', () => {
     try {
-      return JSON.parse(cached).map((message: MessageHeader) => ({
-        ...message,
-        Betreff: htmlToText(message.Betreff),
-      }));
-    } catch {
-      return [];
-    }
+      const cached = isDemoRoute() ? null : readPersonalCache('messages_cache');
+      const parsed: unknown = cached ? JSON.parse(cached) : null;
+      return Array.isArray(parsed) ? parsed.map((message: MessageHeader) => ({ ...message, Betreff: htmlToText(message.Betreff) })) : [];
+    } catch { return []; }
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useCachedState<Record<string, Message[]>>('conversations', {});
+  const conversationMessages = selectedConversation ? conversations[selectedConversation] || [] : [];
   const [isLoading, setIsLoading] = useState(true);
+  const conversationRequest = useRef(0);
   const [isConversationLoading, setIsConversationLoading] = useState(false);
   const [error, setError] = useState('');
   const [showCompose, setShowCompose] = useState(false);
@@ -128,7 +126,7 @@ const Messages: React.FC = () => {
     if (!token) return;
     const abortController = new AbortController();
     loadMessages(abortController.signal);
-    return () => abortController.abort();
+    return () => { abortController.abort(); conversationRequest.current++; };
   }, [token]);
 
   useEffect(() => {
@@ -203,10 +201,12 @@ const Messages: React.FC = () => {
 
   const loadConversation = async (conversationId: string) => {
     if (!token) return;
+    const requestId = ++conversationRequest.current;
     try {
-      setIsConversationLoading(true);
+      setIsConversationLoading(conversations[conversationId] === undefined);
       setSelectedConversation(conversationId);
       const response = await messagesAPI.getConversation(token, conversationId);
+      if (requestId !== conversationRequest.current) return;
       if (response.success && response.messages) {
         const transformedMessages = response.messages.map((msg: any) => ({
           ...msg,
@@ -218,7 +218,7 @@ const Messages: React.FC = () => {
           empf: typeof msg.empf === 'string' ? displayName(msg.empf) : msg.empf,
           WeitereEmpfaenger: displayName(msg.WeitereEmpfaenger),
         }));
-        setConversationMessages(transformedMessages);
+        setConversations(current => ({ ...current, [conversationId]: transformedMessages }));
         setError('');
       } else {
         if (response && typeof response === 'object' && 'error' in response) {
@@ -232,6 +232,7 @@ const Messages: React.FC = () => {
         }
       }
     } catch (error: any) {
+      if (requestId !== conversationRequest.current) return;
       console.error('Error loading conversation:', error);
       if (error?.response?.status === 404) {
         setError('Unterhaltung nicht gefunden.');
@@ -241,8 +242,10 @@ const Messages: React.FC = () => {
         setError('Fehler beim Laden der Unterhaltung. Bitte versuchen Sie es später erneut.');
       }
     } finally {
-      setIsConversationLoading(false);
-      void loadMessages(undefined, false);
+      if (requestId === conversationRequest.current) {
+        setIsConversationLoading(false);
+        void loadMessages(undefined, false);
+      }
     }
   };
 
@@ -343,7 +346,7 @@ const Messages: React.FC = () => {
     }
   };
 
-  if (isLoading && (!messages || messages.length === 0)) {
+  if (isLoading && !hasMessages && messages.length === 0) {
     return (
       <div className="p-6">
         <div className="space-y-4">
