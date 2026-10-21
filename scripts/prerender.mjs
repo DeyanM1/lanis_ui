@@ -1,9 +1,10 @@
-import { mkdir, readFile, writeFile, readdir, rm } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { createServer } from 'vite';
 import { loadSchools } from './school-cache.mjs';
+import { rendererFingerprint } from './school-renderer-fingerprint.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = join(root, 'dist');
@@ -11,23 +12,6 @@ const cacheDir = join(root, '.cache/school-pages');
 const origin = 'https://lanis.arg-server.de';
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const serialize = (value) => JSON.stringify(value).replace(/</g, '\\u003c');
-
-async function rendererFingerprint(apiBase) {
-  const digest = createHash('sha256').update(`renderer-v1:${process.versions.node.split('.')[0]}:${apiBase}`);
-  async function visit(directory) {
-    const files = await readdir(join(root, directory), { withFileTypes: true });
-    for (const file of files.sort((a, b) => a.name.localeCompare(b.name, 'en'))) {
-      const name = join(directory, file.name);
-      if (file.isDirectory()) await visit(name);
-      else if (/\.(tsx?|css)$/.test(name)) digest.update(name).update(await readFile(join(root, name)));
-    }
-  }
-  await visit('src');
-  for (const name of ['package-lock.json', 'scripts/prerender.mjs', 'scripts/school-cache.mjs', 'vite.config.ts']) {
-    digest.update(name).update(await readFile(join(root, name)));
-  }
-  return digest.digest('hex');
-}
 
 async function prerender() {
   if (process.env.SKIP_PRERENDER === '1') {
@@ -74,7 +58,7 @@ async function prerender() {
     await writePage(directoryRoute, render('/schulen', { schools }),
       `<script id="school-directory-data" type="application/json">${serialize({ success: true, schools })}</script>`);
 
-    const fingerprint = await rendererFingerprint(apiBase);
+    const fingerprint = await rendererFingerprint(root, apiBase);
     const markupDir = join(cacheDir, 'markup');
     let previousFingerprint;
     try { previousFingerprint = await readFile(join(cacheDir, 'renderer'), 'utf8'); } catch { /* Cache miss. */ }
