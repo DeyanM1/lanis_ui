@@ -1,3 +1,4 @@
+import { DashboardModulesSkeleton } from '../shared/LoadingSkeletons';
 import { useCachedState } from '../../hooks/useCachedState';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -279,22 +280,6 @@ const Dashboard: React.FC = () => {
     return 0;
   });
 
-  if (isLoading && !hasModules && modules.length === 0) {
-    return (
-      <div className="p-6">
-        <div className="space-y-6">
-          <div className="skeleton h-8 w-48" />
-          <div className="skeleton h-4 w-72" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="skeleton h-32" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="module-page">
       <SEO
@@ -441,7 +426,9 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {sortedModules.length === 0 ? (
+      {isLoading && !hasModules && modules.length === 0 ? (
+        <DashboardModulesSkeleton viewMode={viewMode} />
+      ) : sortedModules.length === 0 ? (
         <div className="empty-state">
           <FolderIcon className="empty-state-icon" />
           <h3 className="empty-state-title">Keine Module gefunden</h3>

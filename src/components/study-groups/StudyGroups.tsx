@@ -61,9 +61,10 @@ const StudyGroups: React.FC = () => {
 
       {error && data && <p role="status" className="mb-4 text-sm text-amber-700 dark:text-amber-300">Aktualisierung fehlgeschlagen. Der zuletzt geladene Stand wird angezeigt. {error}</p>}
       {loading ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Array.from({ length: 4 }).map((_, index) => <div key={index} className="skeleton h-40" />)}
+        <div aria-busy="true" aria-label="Lerngruppen werden geladen">
+          <div className="mb-3 flex items-center gap-2"><AcademicCapIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" /><h2 className="text-lg font-semibold text-surface-900 dark:text-surface-100">Meine Gruppen</h2></div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, index) => <div key={index} className="card !p-5" aria-hidden="true"><div className="flex justify-between gap-3"><div className="flex-1"><div className="skeleton h-6 w-40 max-w-full" /><div className="skeleton mt-1 h-[22px] w-20" /></div><div className="h-10 w-10 shrink-0 rounded-xl bg-primary-50 dark:bg-primary-950 flex items-center justify-center"><UserGroupIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" /></div></div><div className="mt-4 border-t pt-4"><p className="mb-2 text-xs font-medium uppercase tracking-wide text-surface-400">Lehrkräfte</p><div className="flex gap-2 py-1.5 items-center"><div className="skeleton h-8 w-8 rounded-full" /><div className="skeleton h-5 w-32" /></div></div></div>)}
           </div>
         </div>
       ) : error && !data ? (

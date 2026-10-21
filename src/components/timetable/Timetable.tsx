@@ -4,7 +4,6 @@ import { de } from 'date-fns/locale';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   AcademicCapIcon,
-  ArrowPathIcon,
   BookOpenIcon,
   CalendarDaysIcon,
   CheckCircleIcon,
@@ -18,8 +17,9 @@ import { useBasePath } from '../../contexts/BasePathContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { timetableAPI } from '../../services/api';
 import { StudyGroupExam, TimetableDay, TimetableLesson, TimetableResponse } from '../../types';
-import { weekTypeForDate } from '../../utils/timetableView';
+import { timetableDatesForMode, weekTypeForDate } from '../../utils/timetableView';
 import SEO from '../seo/SEO';
+import TimetableSkeleton from './TimetableSkeleton';
 import { layoutTimetableEntries, TimetableEntry, timetableEntries } from '../../utils/timetableExams';
 import { useCachedResource } from '../../hooks/useCachedResource';
 import {
@@ -62,9 +62,14 @@ const Timetable: React.FC = () => {
   const visibleExamCount = visibleDays.reduce((total, day) => total + displayedExams.filter(exam => exam.date === day.date).length, 0);
   const noticeCount = visibleDays.reduce((total, day) => total + (day.substitutionNotices || []).length, 0);
   const lessonCount = useMemo(() => visibleDays.reduce((total, day) => total + day.lessons.length, 0), [visibleDays]);
-  const firstVisibleDate = visibleDays[0]?.date ? new Date(`${visibleDays[0].date}T12:00:00`) : undefined;
+  const loadingDates = timetableDatesForMode(timetableViewMode, new Date());
+  const firstVisibleDate = visibleDays[0]?.date
+    ? new Date(`${visibleDays[0].date}T12:00:00`)
+    : loading ? loadingDates[0] : undefined;
   const lastVisibleDay = visibleDays[visibleDays.length - 1];
-  const lastVisibleDate = lastVisibleDay?.date ? new Date(`${lastVisibleDay.date}T12:00:00`) : undefined;
+  const lastVisibleDate = lastVisibleDay?.date
+    ? new Date(`${lastVisibleDay.date}T12:00:00`)
+    : loading ? loadingDates[loadingDates.length - 1] : undefined;
   const displayedWeekTypes = useMemo(() => {
     if (weekOverride) return [weekOverride];
     if (!activeWeek || !referenceWeekStart) return [];
@@ -123,6 +128,7 @@ const Timetable: React.FC = () => {
         </div>
 
         <div role="status" className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 dark:text-surface-400">
+          {loading && <span className="skeleton inline-block h-4 w-32" aria-hidden="true" />}
           {substitutionSources.map(source => <span key={source.name} className={source.error ? 'text-amber-700 dark:text-amber-300' : ''}>
             {source.name}: {source.error ? 'nicht geladen – Änderungen können fehlen' : source.updated ? `Stand ${formatSourceDate(source.updated)}` : 'abgeglichen'}
           </span>)}
@@ -140,9 +146,7 @@ const Timetable: React.FC = () => {
           <p role="status" className="mb-4 text-sm text-amber-700 dark:text-amber-300">Aktualisierung fehlgeschlagen. Der zuletzt geladene Stand wird angezeigt. {error}</p>
         )}
         {loading ? (
-          <div className="card flex min-h-64 items-center justify-center">
-            <div className="text-center text-surface-500"><ArrowPathIcon className="mx-auto mb-3 h-7 w-7 animate-spin text-primary-500" />Stundenplan wird geladen …</div>
-          </div>
+          <TimetableSkeleton dates={loadingDates} layoutMode={preferences.timetable.layout_mode} />
         ) : error && !data ? (
           <div className="card flex min-h-64 flex-col items-center justify-center text-center">
             <CalendarDaysIcon className="mb-3 h-10 w-10 text-red-400" />

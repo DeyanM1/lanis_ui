@@ -1,5 +1,7 @@
+import { ConversationSkeleton } from '../shared/ModuleLoadingSkeletons';
 import { useCachedState } from '../../hooks/useCachedState';
 import { readPersonalCache, writePersonalCache } from '../../utils/accountDataWrites';
+import { MessagesListSkeleton } from '../shared/LoadingSkeletons';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { messagesAPI } from '../../services/api';
@@ -346,20 +348,7 @@ const Messages: React.FC = () => {
     }
   };
 
-  if (isLoading && !hasMessages && messages.length === 0) {
-    return (
-      <div className="p-6">
-        <div className="space-y-4">
-          <div className="skeleton h-8 w-48" />
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="skeleton h-16" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="h-[calc(100dvh-3.5rem)] md:h-screen flex overflow-hidden">
@@ -401,7 +390,9 @@ const Messages: React.FC = () => {
             </div>
           )}
 
-          {messages && messages.length === 0 ? (
+          {isLoading && !hasMessages && messages.length === 0 ? (
+            <MessagesListSkeleton />
+          ) : messages && messages.length === 0 ? (
             <div className="empty-state">
               <InboxArrowDownIcon className="empty-state-icon" />
               <h3 className="empty-state-title">Keine Nachrichten</h3>
@@ -493,9 +484,7 @@ const Messages: React.FC = () => {
             </div>
 
             {isConversationLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-6 h-6 rounded-full border-2 border-primary-300 border-t-primary-600 animate-spin" />
-              </div>
+              <ConversationSkeleton />
             ) : (
               <>
               <div className="flex-1 overflow-y-auto p-6 space-y-4">

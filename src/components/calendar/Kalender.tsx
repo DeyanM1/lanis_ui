@@ -236,53 +236,6 @@ const Kalender: React.FC = () => {
     setSelectedEvent(null);
   };
 
-  if (isLoading && events.length === 0) {
-    return (
-      <div className="h-full flex flex-col module-page">
-        <div className="page-header flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="skeleton h-9 w-36 rounded-lg" />
-            <div className="flex items-center gap-2">
-              <div className="skeleton h-10 w-20 rounded-xl" />
-              <div className="skeleton h-10 w-20 rounded-xl" />
-              <div className="skeleton h-10 w-20 rounded-xl" />
-              <div className="skeleton h-10 w-20 rounded-xl" />
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 card flex-shrink-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="skeleton h-4 w-14 rounded" />
-            <div className="skeleton h-9 w-32 rounded-xl" />
-            <div className="skeleton h-9 w-48 rounded-xl" />
-          </div>
-        </div>
-
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="mb-2 flex-shrink-0 border-b border-surface-200 py-2 dark:border-surface-700">
-            <div className="skeleton h-7 w-40 rounded-lg" />
-          </div>
-          <div className="grid grid-cols-7 gap-px mb-1 flex-shrink-0">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="skeleton h-8 rounded" />
-            ))}
-          </div>
-          <div className="flex-1 min-h-0 grid grid-cols-7 auto-rows-[80px] sm:auto-rows-[160px] content-start gap-px bg-surface-200 dark:bg-surface-700 rounded-xl overflow-hidden border border-surface-100 dark:border-surface-700">
-            {Array.from({ length: 35 }).map((_, i) => (
-              <div key={i} className="bg-white dark:bg-surface-900 min-h-0 p-1 sm:p-1.5">
-                <div className="skeleton h-6 w-6 rounded-full mb-1" />
-                <div className="space-y-0.5">
-                  {i % 4 === 0 && <div className="skeleton h-4 w-full rounded" />}
-                  {i % 5 === 0 && <div className="skeleton h-4 w-4/5 rounded" />}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full flex flex-col module-page">
@@ -390,7 +343,7 @@ const Kalender: React.FC = () => {
 
       {/* Month View */}
       {calendarViewMode === 'month' && (
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col" aria-busy={isLoading && events.length === 0} aria-label="Kalenderereignisse">
         <div className="sticky top-0 z-10 mb-2 flex-shrink-0 border-b border-surface-200 bg-surface-50/95 py-2 backdrop-blur dark:border-surface-700 dark:bg-surface-950/95">
           <h2 className="section-title">
             {format(currentDate, 'MMMM yyyy', { locale: de })}
@@ -433,6 +386,9 @@ const Kalender: React.FC = () => {
                       )}>
                         {format(day, 'd')}
                       </div>
+                      {isLoading && events.length === 0 && isCurrentMonth && day.getDate() % 3 === 0 && (
+                        <div className="skeleton mt-1 h-4 w-full rounded" aria-hidden="true" />
+                      )}
                     </div>
                   );
                 })}
@@ -483,14 +439,23 @@ const Kalender: React.FC = () => {
 
       {/* List / Agenda View */}
       {calendarViewMode === 'list' && (
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col" aria-busy={isLoading && events.length === 0} aria-label="Kalenderereignisse">
           <div className="sticky top-0 z-10 mb-2 flex-shrink-0 border-b border-surface-200 bg-surface-50/95 py-2 backdrop-blur dark:border-surface-700 dark:bg-surface-950/95">
             <h2 className="section-title">
               {format(currentDate, 'MMMM yyyy', { locale: de })}
             </h2>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto space-y-1">
-          {(() => {
+          {isLoading && events.length === 0 ? (
+            <div className="space-y-1" aria-hidden="true">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i} className="card">
+                  <div className="skeleton h-7 w-48 max-w-full mb-3" />
+                  <div className="skeleton h-12 w-full rounded-xl" />
+                </div>
+              ))}
+            </div>
+          ) : (() => {
             const sortedDates = Array.from(eventsByDate.entries())
               .filter(([dateKey]) => isSameMonth(parseISO(dateKey), currentDate))
               .sort(([a], [b]) => a.localeCompare(b));

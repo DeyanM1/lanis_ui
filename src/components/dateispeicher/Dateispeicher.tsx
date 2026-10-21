@@ -1,3 +1,4 @@
+import { FileStorageSkeleton } from '../shared/ModuleLoadingSkeletons';
 import { useCachedResource } from '../../hooks/useCachedResource';
 import React, { FormEvent, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
@@ -331,12 +332,7 @@ const Dateispeicher: React.FC = () => {
         )}
 
         {busy ? (
-          <div className="card flex min-h-64 items-center justify-center">
-            <div className="text-center text-surface-500">
-              <ArrowPathIcon className="mx-auto mb-3 h-7 w-7 animate-spin text-primary-500" />
-              {isSearchMode ? 'Dateispeicher wird durchsucht …' : 'Dateispeicher wird geladen …'}
-            </div>
-          </div>
+          <FileStorageSkeleton />
         ) : (
           <>
             {visibleFolders.length > 0 && (
