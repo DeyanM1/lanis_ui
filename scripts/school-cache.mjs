@@ -2,10 +2,11 @@ import { mkdir, readFile, writeFile, rename, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const HOUR = 3600000;
-const DIRECTORY_TTL = 12 * HOUR;
-const PROFILE_TTL = 20 * HOUR;
+const MONTH = 30 * 24 * HOUR;
+const DIRECTORY_TTL = MONTH;
+const PROFILE_TTL = MONTH;
 const ERROR_TTL = HOUR;
-const MAX_STALE = 7 * 24 * HOUR;
+const MAX_STALE = MONTH + 7 * 24 * HOUR;
 const FETCH_BUDGET = 7 * 60 * 1000;
 const CONCURRENCY = 2;
 

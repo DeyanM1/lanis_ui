@@ -1,3 +1,5 @@
+import { DashboardModulesSkeleton } from '../shared/LoadingSkeletons';
+import { useCachedState } from '../../hooks/useCachedState';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,6 +29,7 @@ import {
 import { API_BASE_URL } from '../../services/api';
 import clsx from 'clsx';
 import ModuleIcon from './ModuleIcon';
+import { moduleDestination, prefetchModule } from '../../utils/modulePrefetch';
 import DashboardNotifications from './DashboardNotifications';
 import { readModulesCache, writeModulesCache } from '../../utils/moduleCache';
 import { captureAccountDataGeneration } from '../../utils/accountDataWrites';
@@ -42,9 +45,9 @@ const Dashboard: React.FC = () => {
   const { preferences, updatePreferences } = usePreferences();
   const navigate = useNavigate();
   const basePath = useBasePath();
-  const [modules, setModules] = useState<Module[]>(() => readModulesCache(user));
+  const [modules, setModules, hasModules] = useCachedState<Module[]>('modules', () => readModulesCache(user));
   const [isUpdating, setIsUpdating] = useState(false);
-  const [folders, setFolders] = useState<string[]>([]);
+  const folders = [...new Set(modules.flatMap(module => module.folders))];
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,7 +75,6 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (!token) return;
-    setModules(readModulesCache(user));
     const abortController = new AbortController();
     const writeGeneration = captureAccountDataGeneration();
     loadModules(abortController.signal, writeGeneration);
@@ -89,15 +91,6 @@ const Dashboard: React.FC = () => {
       if (modulesResponse.success) {
         setModules(modulesResponse.modules);
         writeModulesCache(user, modulesResponse.modules, writeGeneration);
-        const allFolders: string[] = [];
-        modulesResponse.modules.forEach((module: Module) => {
-          module.folders.forEach((folder) => {
-            if (!allFolders.includes(folder)) {
-              allFolders.push(folder);
-            }
-          });
-        });
-        setFolders(allFolders);
       }
       setIsLoading(false);
     } catch (error) {
@@ -108,6 +101,11 @@ const Dashboard: React.FC = () => {
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const warmModule = (module: Module) => {
+    const id = moduleDestination(module);
+    if (!isEditMode && id && token) void prefetchModule(id, token, preferences);
   };
 
   const handleModuleClick = (module: Module) => {
@@ -122,6 +120,12 @@ const Dashboard: React.FC = () => {
     }
     if (module.url.includes('/kalender.php')) {
       navigate(`${basePath}/calendar`);
+      return;
+    }
+    const moduleLinks = `${module.url} ${module.direct_url || ''}`.toLowerCase();
+    if (moduleLinks.includes('/videokonferenz.php') ||
+        module.name.toLowerCase().includes('videokonferenz')) {
+      navigate(`${basePath}/videokonferenz`);
       return;
     }
     if (module.url.toLowerCase().includes('/stundenplan.php') ||
@@ -139,9 +143,12 @@ const Dashboard: React.FC = () => {
       navigate(`${basePath}/wahlen`);
       return;
     }
-    const moduleLinks = `${module.url} ${module.direct_url || ''}`.toLowerCase();
     if (moduleLinks.includes('/dateispeicher.php') || module.name.toLowerCase().includes('dateispeicher')) {
       navigate(`${basePath}/dateispeicher`);
+      return;
+    }
+    if (moduleLinks.includes('/dateiverteilung.php') || module.name.toLowerCase().includes('dateiverteilung')) {
+      navigate(`${basePath}/dateiverteilung`);
       return;
     }
     const moduleName = module.name.toLowerCase();
@@ -273,24 +280,8 @@ const Dashboard: React.FC = () => {
     return 0;
   });
 
-  if (isLoading && (!modules || modules.length === 0)) {
-    return (
-      <div className="p-6">
-        <div className="space-y-6">
-          <div className="skeleton h-8 w-48" />
-          <div className="skeleton h-4 w-72" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="skeleton h-32" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="module-page">
       <SEO
         title="Dashboard"
         description="Lanis Dashboard — Deine persönliche Übersicht über alle Apps und Module des Schulportal Hessen."
@@ -435,7 +426,9 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {sortedModules.length === 0 ? (
+      {isLoading && !hasModules && modules.length === 0 ? (
+        <DashboardModulesSkeleton viewMode={viewMode} />
+      ) : sortedModules.length === 0 ? (
         <div className="empty-state">
           <FolderIcon className="empty-state-icon" />
           <h3 className="empty-state-title">Keine Module gefunden</h3>
@@ -471,6 +464,8 @@ const Dashboard: React.FC = () => {
                   if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropTarget(null);
                 }}
                 onDrop={(event) => handleDrop(event, module.name)}
+                onMouseEnter={() => warmModule(module)}
+                onFocus={() => warmModule(module)}
                 onClick={() => handleModuleClick(module)}
               >
                 {activeDropTarget && (
@@ -715,7 +710,7 @@ const Dashboard: React.FC = () => {
                   <InformationCircleIcon className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 id="external-module-title" className="text-base font-semibold text-surface-900 dark:text-surface-100">
+                  <h2 id="external-module-title" className="item-title">
                     Externes Modul
                   </h2>
                   <p className="mt-1 text-sm leading-5 text-surface-600 dark:text-surface-300">

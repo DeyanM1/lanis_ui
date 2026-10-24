@@ -30,14 +30,18 @@
     "wrangler": "4.151.1"
   },
   "scripts": {
+    "predev": "npm run images:optimize",
     "dev": "vite",
+    "images:optimize": "node scripts/optimize-landing-images.mjs",
+    "prebuild": "npm run images:optimize",
+    "test": "node scripts/test-format-duration.cjs && node scripts/test-resource-cache.cjs && node scripts/test-video-room.cjs && node scripts/test-safe-http-url.cjs && node scripts/test-download-filename.cjs && node scripts/test-account-data.cjs && node scripts/test-logout-cache.cjs && node scripts/test-timetable-colours.cjs && node scripts/test-timetable-exams.cjs && node scripts/test-timetable-refresh.cjs && node scripts/test-module-prefetch.cjs && node --test scripts/test-agent-backend.cjs scripts/school-cache.test.mjs scripts/test-submission-transfers.cjs scripts/optimize-landing-images.test.mjs scripts/cloudflare/*.test.cjs",
     "build": "tsc && vite build",
     "postbuild": "node scripts/prerender.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test:push": "node --test scripts/test-browser-push.cjs",
     "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler versions upload"
+    "deploy:preview": "wrangler versions upload",
+    "test:push": "node --test scripts/test-browser-push.cjs"
   },
   "browserslist": {
     "production": [
