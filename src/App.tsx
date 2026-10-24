@@ -1,4 +1,5 @@
 import React from 'react';
+import BrowserPushRuntime from './components/BrowserPushRuntime';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -79,6 +80,7 @@ const PreferencesGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
 const AppRoutes: React.FC = () => {
   return (
     <Router>
+      <BrowserPushRuntime />
       <Routes>
         <Route path="/" element={<LandingRoot />} />
         <Route path="/landing" element={<Navigate to="/" replace />} />

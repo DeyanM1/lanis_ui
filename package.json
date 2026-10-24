@@ -40,7 +40,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler versions upload"
+    "deploy:preview": "wrangler versions upload",
+    "test:push": "node --test scripts/test-browser-push.cjs"
   },
   "browserslist": {
     "production": [
