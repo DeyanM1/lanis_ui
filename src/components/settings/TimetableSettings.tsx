@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { settingsAPI, timetableAPI } from '../../services/api';
-import { ClassLink, CustomLesson, TimetableLayoutMode, TimetableLesson, TimetableResponse } from '../../types';
+import { ClassLink, CompletedHomeworkDisplay, CustomLesson, TimetableLayoutMode, TimetableLesson, TimetableResponse } from '../../types';
 import { applyTimetableOverrides, TimetableViewMode, weekdayForDate } from '../../utils/timetableView';
 import {
   defaultTimetableClassColour,
@@ -293,6 +293,10 @@ const TimetableSettings: React.FC = () => {
     void updatePreferences({ timetable: { view_mode: mode } });
   };
 
+  const setHomeworkHighlight = (display: CompletedHomeworkDisplay) => {
+    void updatePreferences({ homework: { completed_display: display } });
+  };
+
   const draftClassColour = (key: string, defaultColour: string) => (
     draftClassColours[key] || defaultColour
   );
@@ -448,7 +452,7 @@ const TimetableSettings: React.FC = () => {
     return (
       <div className="card flex min-h-72 flex-col items-center justify-center text-center">
         <CalendarDaysIcon className="mb-3 h-10 w-10 text-red-400" />
-        <h2 className="font-semibold text-surface-900 dark:text-white">Stundenplan nicht verfügbar</h2>
+        <h2 className="item-title">Stundenplan nicht verfügbar</h2>
         <p className="mt-1 max-w-md text-sm text-surface-500">{error}</p>
         <button type="button" className="btn btn-secondary mt-4" onClick={() => load()}>
           Erneut versuchen
@@ -459,67 +463,86 @@ const TimetableSettings: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <section className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <CalendarDaysIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-500" aria-hidden="true" />
-          <div>
-            <label className="font-medium text-surface-900 dark:text-white" htmlFor="timetable-view-mode">Standardansicht</label>
-            <p className="mt-0.5 text-xs text-surface-500">Wird mit deinem Lanis-Konto synchronisiert.</p>
-          </div>
+      <section className="card">
+        <h2 className="item-title">Layout</h2>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <fieldset>
+            <legend className="label">Ansicht</legend>
+            <div className="segmented-control mt-2 grid-cols-2" role="radiogroup" aria-label="Stundenplanansicht">
+              {([
+                ['rolling', 'Nächste 7 Tage'],
+                ['week', 'Aktuelle Woche'],
+              ] as const).map(([mode, label]) => (
+                <button key={mode} type="button" role="radio" aria-checked={timetableViewMode === mode}
+                  onClick={() => updateTimetableViewMode(mode)}
+                  className="segmented-control-option">
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="label">Darstellung</legend>
+            <div className="segmented-control mt-2 grid-cols-2" role="radiogroup" aria-label="Stundenplan-Darstellung">
+              {([
+                ['cards', 'Karten'],
+                ['compact', 'Kompakt & farbig'],
+              ] as const).map(([mode, label]) => (
+                <button key={mode} type="button" role="radio" aria-checked={preferences.timetable.layout_mode === mode}
+                  onClick={() => void updatePreferences({ timetable: { layout_mode: mode as TimetableLayoutMode } })}
+                  className="segmented-control-option">
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
         </div>
-        <select
-          id="timetable-view-mode"
-          className="input w-full sm:w-52"
-          value={timetableViewMode}
-          onChange={event => updateTimetableViewMode(event.target.value as TimetableViewMode)}
-        >
-          <option value="rolling">Kommende 7 Tage</option>
-          <option value="week">Schulwoche</option>
-        </select>
-      </section>
-
-      <section className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <CalendarDaysIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-500" aria-hidden="true" />
-          <div>
-            <label className="font-medium text-surface-900 dark:text-white" htmlFor="timetable-layout-mode">Darstellung</label>
-            <p className="mt-0.5 text-xs text-surface-500">Die kompakte Ansicht zeigt alle Wochentage gleichzeitig und färbt Fächer ein.</p>
-          </div>
-        </div>
-        <select
-          id="timetable-layout-mode"
-          className="input w-full sm:w-52"
-          value={preferences.timetable.layout_mode}
-          onChange={event => void updatePreferences({ timetable: { layout_mode: event.target.value as TimetableLayoutMode } })}
-        >
-          <option value="cards">Karten</option>
-          <option value="compact">Kompakt &amp; farbig</option>
-        </select>
       </section>
 
       <section className="card">
-        <h3 className="font-semibold text-surface-900 dark:text-white">Inhalte im Stundenplan</h3>
-        <p className="mt-1 text-sm text-surface-500">Wähle, welche zusätzlichen Inhalte angezeigt werden. Wird mit deinem Lanis-Konto synchronisiert.</p>
+        <h2 className="item-title">Im Stundenplan anzeigen</h2>
         <div className="mt-4 space-y-4">
           {([
-            ['show_substitutions', 'Vertretungsplan anzeigen', 'Zeigt Vertretungen, Raumänderungen und Ausfälle aus Schulportal und DSB im Stundenplan.'],
-            ['show_homework', 'Hausaufgaben anzeigen', 'Zeigt Hausaufgaben bei den zugehörigen Unterrichtsstunden.'],
-            ['show_exams', 'Klausuren anzeigen', 'Zeigt Klausuren anstelle der betroffenen Unterrichtsstunden.'],
-          ] as const).map(([key, label, description]) => (
-            <label key={key} className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
-                checked={preferences.timetable[key]}
-                onChange={event => void updatePreferences({ timetable: { [key]: event.target.checked } })}
-              />
-              <span>
-                <span className="block text-sm font-medium text-surface-900 dark:text-white">{label}</span>
-                <span className="mt-0.5 block text-xs text-surface-500">{description}</span>
-              </span>
-            </label>
+            ['show_substitutions', 'Vertretungen'],
+            ['show_homework', 'Hausaufgaben'],
+            ['show_exams', 'Klausuren'],
+          ] as const).map(([key, label]) => (
+            <div key={key}>
+              <label className="flex cursor-pointer items-center gap-3">
+                <input type="checkbox" className="h-4 w-4 rounded border-surface-300 text-primary-600 focus:ring-primary-500"
+                  checked={preferences.timetable[key]}
+                  onChange={event => void updatePreferences({ timetable: { [key]: event.target.checked } })} />
+                <span className="text-sm font-medium text-surface-900 dark:text-surface-100">{label}</span>
+              </label>
+              {key === 'show_homework' && preferences.timetable.show_homework && (
+                <fieldset className="ml-7 mt-3 border-l-2 border-surface-200 pl-4 dark:border-surface-700">
+                  <legend className="label">Markierung erledigter Hausaufgaben</legend>
+                  <div className="segmented-control mt-2 grid-cols-1 sm:grid-cols-3" role="radiogroup" aria-label="Markierung erledigter Hausaufgaben">
+                    {([
+                      ['orange', 'Deutlich orange'],
+                      ['green', 'Dezent grün'],
+                      ['hidden', 'Ausgeblendet'],
+                    ] as const).map(([display, title]) => (
+                      <button key={display} type="button" role="radio" aria-checked={preferences.homework.completed_display === display}
+                        onClick={() => setHomeworkHighlight(display)}
+                        className="segmented-control-option">
+                        {title}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+            </div>
           ))}
         </div>
+      </section>
+
+      <section className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="item-title">Stundenplan anpassen</h2>
+          <p className="mt-1 text-sm text-surface-500">Bearbeite Unterrichtsstunden und Kursfarben im Stundenplan-Editor.</p>
+        </div>
+        <button type="button" className="btn btn-secondary shrink-0" onClick={selectNewLesson}>Editor öffnen</button>
       </section>
 
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
@@ -528,8 +551,8 @@ const TimetableSettings: React.FC = () => {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <section ref={lessonListRef} className={`card !p-0 lg:flex lg:min-h-0 lg:flex-col ${mobileEditorOpen ? 'hidden lg:flex' : ''}`}>
           <div className="flex items-center justify-between border-b border-surface-100 px-4 py-4 dark:border-surface-800 sm:px-5">
-            <h3 className="font-semibold text-surface-900 dark:text-white">Stundenplan</h3>
-            <button type="button" className="btn btn-primary h-9 px-3 text-xs" onClick={selectNewLesson}>
+            <h3 className="item-title">Stundenplan</h3>
+            <button type="button" className="btn btn-primary" onClick={selectNewLesson}>
               <PlusIcon className="mr-1.5 h-4 w-4" />
               Neue Stunde
             </button>
@@ -539,7 +562,7 @@ const TimetableSettings: React.FC = () => {
               <div className="rounded-xl border border-dashed border-surface-300 p-6 text-center dark:border-surface-700">
                 <CalendarDaysIcon className="mx-auto mb-2 h-7 w-7 text-surface-400" />
                 <p className="text-sm text-surface-500">Noch keine Stunden gefunden.</p>
-                <button type="button" className="btn btn-secondary mt-4 text-xs" onClick={selectNewLesson}>Erste Stunde anlegen</button>
+                <button type="button" className="btn btn-secondary mt-4" onClick={selectNewLesson}>Erste Stunde anlegen</button>
               </div>
             ) : (
               <div className="space-y-2">
