@@ -38,7 +38,11 @@ export default function HostedChannelSetup({ channel, overview, onPaired }: { ch
       checking = true;
       try {
         const latest = await agentsAPI.list(token);
-        if (active && latest.connections.some(connection => connection.channel === channel && !connection.revoked && !existing.has(connection.id))) onPaired();
+        if (active && latest.connections.some(connection => connection.channel === channel && !connection.revoked && !existing.has(connection.id))) {
+          active = false;
+          setPairing(null);
+          onPaired();
+        }
       } catch { /* Keep the pairing controls available during connection failures. */ }
       finally { checking = false; }
     };

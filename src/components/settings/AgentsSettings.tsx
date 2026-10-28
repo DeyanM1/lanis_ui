@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { API_BASE_URL } from '../../services/api';
 import { normalizeBackendUrl } from '../../utils/backendConfig';
 import { agentSettingsSwitchPath } from '../../utils/agentBackend';
-import { ArrowPathIcon, CheckIcon, ClipboardDocumentIcon, SparklesIcon, PlusIcon, XMarkIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, CheckIcon, ClipboardDocumentIcon, SparklesIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { AccessMode, AccessPresets, AgentConnection, AgentsOverview, agentsAPI } from '../../services/api';
 import HostedChannelSetup from '../agents/HostedChannelSetup';
@@ -74,7 +74,6 @@ export default function AgentsSettings() {
   const [data, setData] = useState<AgentsOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [setup, setSetup] = useState(false);
   const [provider, setProvider] = useState('Claude');
   const [copied, setCopied] = useState(false);
   const requestVersion = useRef(0);
@@ -102,11 +101,11 @@ export default function AgentsSettings() {
   };
   const active = data?.connections.filter(c => !c.revoked) || [];
   if (invalidIssuer || backendMismatch) return <section className="card max-w-md"><h2 className="section-title">{invalidIssuer ? 'Ungültiger Link' : 'Anderes Backend'}</h2>{!invalidIssuer && <><p className="mt-3 break-all text-sm text-surface-500">{issuer}</p><Link className="btn btn-primary mt-4" to={agentSettingsSwitchPath(issuer)}>Backend prüfen</Link></>}</section>;
-  const setupPanel = setup && <section className="card" aria-labelledby="connect-agent-heading">
+  const setupPanel = <section className="card" aria-labelledby="connect-agent-heading">
     <h2 id="connect-agent-heading" className="item-title">Agent verbinden</h2>
     <div className="mt-5 space-y-5" aria-label="Agent verbinden">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="group" aria-label="Agent auswählen">{['ChatGPT', 'Claude', 'Signal', 'WhatsApp', 'Andere'].map(p => <button key={p} onClick={() => { setProvider(p); setCopied(false); }} aria-pressed={provider === p} className={`flex min-w-0 flex-col items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-colors ${provider === p ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500/15 dark:bg-primary-950/40' : 'border-surface-200 bg-white hover:border-primary-300 dark:border-surface-800 dark:bg-surface-900'}`}><ProviderIcon name={p} />{p}</button>)}</div>
-        {(provider === 'Signal' || provider === 'WhatsApp') && data ? <HostedChannelSetup key={provider} channel={provider === 'Signal' ? 'signal' : 'whatsapp'} overview={data} onPaired={() => { setSetup(false); void load(); }} /> : provider === 'ChatGPT' ? <p role="status" className="text-sm text-surface-500">Demnächst verfügbar</p> : <>
+        {(provider === 'Signal' || provider === 'WhatsApp') && data ? <HostedChannelSetup key={provider} channel={provider === 'Signal' ? 'signal' : 'whatsapp'} overview={data} onPaired={() => { void load(); }} /> : provider === 'ChatGPT' ? <p role="status" className="text-sm text-surface-500">Demnächst verfügbar</p> : <>
           {provider === 'Claude' ? <a href="https://claude.ai/customize/connectors?modal=add-custom-connector" target="_blank" rel="noopener noreferrer" className="btn btn-secondary">Connector in Claude hinzufügen<ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" /></a> : <p className="text-sm text-surface-500">Füge diese Adresse als Remote-MCP-Server hinzu.</p>}
           <div><label className="label" htmlFor="mcp-url">MCP-Adresse</label><div className="flex gap-2"><input id="mcp-url" className="input min-w-0 font-mono text-xs" readOnly value={data?.mcp_url || ''} placeholder="MCP-Adresse" /><button className="btn btn-secondary shrink-0" disabled={!data} onClick={copy} aria-label="MCP-Adresse kopieren">{copied ? <CheckIcon className="h-4 w-4" /> : <ClipboardDocumentIcon className="h-4 w-4" />}</button></div></div>
           <p role="status" className="text-xs text-surface-500">{copied ? 'Kopiert.' : window.location.pathname.startsWith('/demo') ? 'Demo-Adresse. Echte Agenten verbindest du nach der Anmeldung.' : 'Adresse eintragen, dann bei LANIS anmelden und Zugriff wählen.'}</p>
@@ -115,6 +114,7 @@ export default function AgentsSettings() {
   </section>;
   return <div className="space-y-6">
     {error && <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-600 dark:text-red-400">{error}<button onClick={load} className="btn btn-ghost" aria-label="Erneut versuchen"><ArrowPathIcon className="h-4 w-4" /></button></div>}
+    {setupPanel}
     <section className="card" aria-labelledby="connections-heading">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="connections-heading" className="item-title">Aktive Verbindungen{data ? ` (${active.length})` : ''}</h2>
@@ -125,12 +125,5 @@ export default function AgentsSettings() {
           ? <div className="mt-4 divide-y divide-surface-100 dark:divide-surface-800">{active.map(c => <Connection key={c.id} connection={c} overview={data} reload={load} onChanged={applyChange} />)}</div>
           : <p className="mt-4 text-sm text-surface-500">Keine Agenten verbunden.</p>}
     </section>
-    <div className="flex justify-start">
-      <button className="btn btn-primary" aria-expanded={setup} onClick={() => setSetup(!setup)}>
-        {setup ? <XMarkIcon className="mr-1.5 h-4 w-4" /> : <PlusIcon className="mr-1.5 h-4 w-4" />}
-        {setup ? 'Schließen' : 'Agent verbinden'}
-      </button>
-    </div>
-    {setupPanel}
   </div>;
 }
