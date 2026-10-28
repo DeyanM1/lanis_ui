@@ -297,6 +297,7 @@ const AccountSettings: React.FC = () => {
 type SidebarSaveState = 'idle' | 'saved' | 'error';
 
 const SidebarSettings: React.FC = () => {
+  const isDemo = useBasePath() === '/demo';
   const { preferences, updatePreferences, isSaving } = usePreferences();
   const [order, setOrder] = useState(() => normalizeSidebarOrder(preferences.sidebar.order));
   const [hiddenItems, setHiddenItems] = useState<string[]>(() => preferences.sidebar.hidden_items);
@@ -537,7 +538,7 @@ const SidebarSettings: React.FC = () => {
         </div>
       </div>
     </section>
-    <section className="card">
+    {!isDemo && <section className="card">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h3 className="item-title">Feedback-Schaltfläche anzeigen</h3>
@@ -561,7 +562,7 @@ const SidebarSettings: React.FC = () => {
           </div>
         )}
       </div>
-    </section>
+    </section>}
     </div>
   );
 };
