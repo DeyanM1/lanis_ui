@@ -571,7 +571,7 @@ const SettingsIndex: React.FC<{
   sections: typeof settingsSections;
 }> = ({ basePath, sections }) => (
   <div className="space-y-6">
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 xl:grid-cols-2">
     {sections.map(item => (
       <Link
         key={item.id}
