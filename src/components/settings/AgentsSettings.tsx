@@ -36,7 +36,7 @@ const Connection: React.FC<{ connection: AgentConnection; overview: AgentsOvervi
       onChanged(c.id, revoke ? { revoked: true } : { name: name.trim(), scopes });
       setEditing(false); setConfirm(false);
       await reload();
-    }     catch { setError('Speichern fehlgeschlagen. Bitte versuche es erneut.'); }
+    } catch { setError(revoke ? 'Verbindung konnte nicht getrennt werden. Bitte versuche es erneut.' : 'Speichern fehlgeschlagen. Bitte versuche es erneut.'); }
     finally { setBusy(false); }
   };
   return <article className="py-5 first:pt-0 last:pb-0">
