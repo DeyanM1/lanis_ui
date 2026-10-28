@@ -11,6 +11,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { TimetableRangePreview, TimetableLayoutPreview } from './TimetablePreview';
 import { HomeworkPreview } from './HomeworkSettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
@@ -476,8 +477,9 @@ const TimetableSettings: React.FC = () => {
               ] as const).map(([mode, label]) => (
                 <button key={mode} type="button" role="radio" aria-checked={timetableViewMode === mode}
                   onClick={() => updateTimetableViewMode(mode)}
-                  className="segmented-control-option">
-                  {label}
+                  className="segmented-control-option settings-preview-option">
+                  <TimetableRangePreview mode={mode} />
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
@@ -491,8 +493,9 @@ const TimetableSettings: React.FC = () => {
               ] as const).map(([mode, label]) => (
                 <button key={mode} type="button" role="radio" aria-checked={preferences.timetable.layout_mode === mode}
                   onClick={() => void updatePreferences({ timetable: { layout_mode: mode as TimetableLayoutMode } })}
-                  className="segmented-control-option">
-                  {label}
+                  className="segmented-control-option settings-preview-option">
+                  <TimetableLayoutPreview mode={mode} />
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
@@ -526,9 +529,9 @@ const TimetableSettings: React.FC = () => {
                     ] as const).map(([display, title]) => (
                       <button key={display} type="button" role="radio" aria-checked={preferences.homework.completed_display === display}
                         onClick={() => setHomeworkHighlight(display)}
-                        className="segmented-control-option min-w-0 flex-col items-stretch text-left">
+                        className="segmented-control-option settings-preview-option text-left">
                         <HomeworkPreview display={display} />
-                        <span className="mt-2">{title}</span>
+                        <span>{title}</span>
                       </button>
                     ))}
                   </div>

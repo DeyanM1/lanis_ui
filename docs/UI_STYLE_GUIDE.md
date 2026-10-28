@@ -32,6 +32,8 @@ Use `btn` with `btn-primary`, `btn-secondary` or `btn-ghost`; use `input`, `labe
 
 Use `SettingsSwitch` for boolean settings so switch dimensions, focus treatment and disabled states stay consistent.
 
+Use `settings-preview-option` alongside `segmented-control-option` for choices with previews, and `settings-preview` for non-interactive miniature previews inside settings choices. Keep illustrative content hidden from assistive technology and provide a visible option label.
+
 Use `segmented-control` with `segmented-control-option` for mutually exclusive settings choices; the selected option is indicated by `aria-checked="true"`.
 
 Use theme-aware `primary-*` and `surface-*` tokens. Pair custom light surfaces and text with dark variants. Keep semantic status colors for errors, warnings and success. Verify light, dark and OLED modes; do not hardcode white text in place of surface-100 for ordinary headings.
