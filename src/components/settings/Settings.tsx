@@ -1300,11 +1300,6 @@ const Settings: React.FC = () => {
         )}
 
         {/* Info */}
-        {section === 'appearance' && (
-          <div className="text-center text-xs text-surface-400">
-            Die Einstellungen zum Erscheinungsbild werden mit deinem Konto synchronisiert.
-          </div>
-        )}
         {section === 'notifications' && (
           <div className="text-center text-xs text-surface-400">
             Die Benachrichtigungseinstellungen werden mit deinem Konto synchronisiert.

@@ -11,6 +11,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { HomeworkPreview } from './HomeworkSettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { settingsAPI, timetableAPI } from '../../services/api';
@@ -525,8 +526,9 @@ const TimetableSettings: React.FC = () => {
                     ] as const).map(([display, title]) => (
                       <button key={display} type="button" role="radio" aria-checked={preferences.homework.completed_display === display}
                         onClick={() => setHomeworkHighlight(display)}
-                        className="segmented-control-option">
-                        {title}
+                        className="segmented-control-option min-w-0 flex-col items-stretch text-left">
+                        <HomeworkPreview display={display} />
+                        <span className="mt-2">{title}</span>
                       </button>
                     ))}
                   </div>
@@ -535,14 +537,6 @@ const TimetableSettings: React.FC = () => {
             </div>
           ))}
         </div>
-      </section>
-
-      <section className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="item-title">Stundenplan anpassen</h2>
-          <p className="mt-1 text-sm text-surface-500">Bearbeite Unterrichtsstunden und Kursfarben im Stundenplan-Editor.</p>
-        </div>
-        <button type="button" className="btn btn-secondary shrink-0" onClick={selectNewLesson}>Editor öffnen</button>
       </section>
 
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}

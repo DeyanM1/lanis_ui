@@ -40,21 +40,22 @@ const Connection: React.FC<{ connection: AgentConnection; overview: AgentsOvervi
     finally { setBusy(false); }
   };
   return <article className="py-5 first:pt-0 last:pb-0">
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex items-center gap-3">
       <ProviderIcon name={c.client_name} />
       <div className="min-w-0 flex-1"><h3 className="item-title break-words">{c.name}</h3><p className="mt-0.5 text-xs text-surface-500">{accessLabels[describeAccess(c.scopes, presets)]}{c.last_used_at ? ` · ${new Date(c.last_used_at * 1000).toLocaleDateString('de-DE')}` : ''}</p></div>
-      <span className="badge badge-primary">Aktiv</span>
       <button className="btn btn-ghost shrink-0" aria-expanded={editing} onClick={() => { setEditing(!editing); setName(c.name); setScopes(c.scopes); setMode(describeAccess(c.scopes, presets)); }}>{editing ? 'Schließen' : 'Verwalten'}</button>
-      <button className="btn btn-ghost shrink-0 text-red-600 dark:text-red-400" disabled={busy} onClick={() => setConfirm(true)}>Trennen</button>
     </div>
     {editing && <div className="mt-5 space-y-5 sm:ml-8">
       <label className="block"><span className="label">Name</span><input className="input" value={name} onChange={e => setName(e.target.value)} maxLength={100} disabled={busy} /></label>
       <AccessPicker mode={mode} onMode={selectMode} scopes={scopes} onScopes={setScopes} presets={presets} available={ceiling.map(id => ({ id, ...overview.scopes[id] }))} disabled={busy} />
       <p className="break-all text-xs text-surface-500">{c.redirect_origin}</p>
-      <button className="btn btn-primary" disabled={busy || !name.trim() || !scopes.length} onClick={() => save()}>{busy ? 'Wird gespeichert …' : 'Speichern'}</button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn btn-primary" disabled={busy || !name.trim() || !scopes.length} onClick={() => save()}>{busy ? 'Wird gespeichert …' : 'Speichern'}</button>
+        <button className="btn btn-ghost text-red-600 dark:text-red-400" disabled={busy} onClick={() => setConfirm(true)}>Verbindung trennen</button>
+      </div>
       {c.channel && <AgentSchedules id={c.id} />}
     </div>}
-    {confirm && <div className="mt-4 space-y-3 rounded-xl border border-red-200 p-4 dark:border-red-900"><p className="text-sm">Verbindung zu {c.name} trennen?</p><div className="flex gap-2"><button className="btn btn-secondary" disabled={busy} onClick={() => setConfirm(false)}>Abbrechen</button><button className="btn bg-red-600 text-white hover:bg-red-700" disabled={busy} onClick={() => save(true)}>{busy ? 'Verbindung wird getrennt …' : 'Verbindung trennen'}</button></div></div>}
+    {confirm && <div className="mt-4 space-y-3 rounded-xl border border-red-200 p-4 dark:border-red-900"><p className="text-sm">Verbindung zu {c.name} trennen?</p><div className="flex flex-wrap gap-2"><button className="btn btn-secondary" disabled={busy} onClick={() => setConfirm(false)}>Abbrechen</button><button className="btn bg-red-600 text-white hover:bg-red-700" disabled={busy} onClick={() => save(true)}>{busy ? 'Verbindung wird getrennt …' : 'Verbindung trennen'}</button></div></div>}
     {error && <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
   </article>;
 };
@@ -115,7 +116,7 @@ export default function AgentsSettings() {
   return <div className="space-y-6">
     {error && <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-600 dark:text-red-400">{error}<button onClick={load} className="btn btn-ghost" aria-label="Erneut versuchen"><ArrowPathIcon className="h-4 w-4" /></button></div>}
     <section className="card" aria-labelledby="connections-heading">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="connections-heading" className="item-title">Aktive Verbindungen{data ? ` (${active.length})` : ''}</h2>
         <button className="btn btn-ghost" onClick={load} disabled={loading}>Aktualisieren</button>
       </div>
