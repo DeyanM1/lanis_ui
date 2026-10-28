@@ -441,28 +441,6 @@ const TimetableSettings: React.FC = () => {
       && normalisePeriod(lesson.period) === normalisePeriod(draft.period),
   );
 
-  if (loading) {
-    return (
-      <div className="space-y-5" role="status" aria-busy="true" aria-label="Stundenplan wird vorbereitet">
-        <section className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-start gap-3"><CalendarDaysIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-500" /><div><span className="font-medium text-surface-900 dark:text-white">Standardansicht</span><p className="mt-0.5 text-xs text-surface-500">Wird mit deinem Lanis-Konto synchronisiert.</p></div></div><div className="skeleton h-11 w-full sm:w-52" aria-hidden="true" /></section>
-        <div className="card" aria-hidden="true"><div className="skeleton h-6 w-40" /><div className="mt-4 grid grid-cols-5 gap-2">{[0, 1, 2, 3, 4].map(i => <div key={i} className="skeleton h-64 w-full" />)}</div></div>
-      </div>
-    );
-  }
-
-  if (error && !timetable) {
-    return (
-      <div className="card flex min-h-72 flex-col items-center justify-center text-center">
-        <CalendarDaysIcon className="mb-3 h-10 w-10 text-red-400" />
-        <h2 className="item-title">Stundenplan nicht verfügbar</h2>
-        <p className="mt-1 max-w-md text-sm text-surface-500">{error}</p>
-        <button type="button" className="btn btn-secondary mt-4" onClick={() => load()}>
-          Erneut versuchen
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5">
       <section className="card">
@@ -518,30 +496,42 @@ const TimetableSettings: React.FC = () => {
                   onChange={event => void updatePreferences({ timetable: { [key]: event.target.checked } })} />
                 <span className="text-sm font-medium text-surface-900 dark:text-surface-100">{label}</span>
               </label>
-              {key === 'show_homework' && preferences.timetable.show_homework && (
-                <fieldset className="ml-7 mt-3 border-l-2 border-surface-200 pl-4 dark:border-surface-700">
-                  <legend className="label">Markierung erledigter Hausaufgaben</legend>
-                  <div className="segmented-control mt-2 grid-cols-1 sm:grid-cols-3" role="radiogroup" aria-label="Markierung erledigter Hausaufgaben">
-                    {([
-                      ['orange', 'Deutlich orange'],
-                      ['green', 'Dezent grün'],
-                      ['hidden', 'Ausgeblendet'],
-                    ] as const).map(([display, title]) => (
-                      <button key={display} type="button" role="radio" aria-checked={preferences.homework.completed_display === display}
-                        onClick={() => setHomeworkHighlight(display)}
-                        className="segmented-control-option settings-preview-option text-left">
-                        <HomeworkPreview display={display} />
-                        <span>{title}</span>
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              )}
             </div>
           ))}
         </div>
+        <fieldset className="mt-5 border-t border-surface-100 pt-5 dark:border-surface-800">
+          <legend className="label">Erledigte Hausaufgaben in „Mein Unterricht“</legend>
+          <div className="segmented-control mt-2 grid-cols-1 sm:grid-cols-3" role="radiogroup" aria-label="Markierung erledigter Hausaufgaben">
+            {([
+              ['orange', 'Deutlich orange'],
+              ['green', 'Dezent grün'],
+              ['hidden', 'Ausgeblendet'],
+            ] as const).map(([display, title]) => (
+              <button key={display} type="button" role="radio" aria-checked={preferences.homework.completed_display === display}
+                onClick={() => setHomeworkHighlight(display)}
+                className="segmented-control-option settings-preview-option text-left">
+                <HomeworkPreview display={display} />
+                <span>{title}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
       </section>
 
+      {loading ? (
+        <div className="card" role="status" aria-busy="true" aria-label="Stundenplan wird vorbereitet">
+          <span className="sr-only">Stundenplan wird vorbereitet …</span>
+          <div className="skeleton h-6 w-40" aria-hidden="true" />
+          <div className="mt-4 grid grid-cols-5 gap-2" aria-hidden="true">{[0, 1, 2, 3, 4].map(i => <div key={i} className="skeleton h-64 w-full" />)}</div>
+        </div>
+      ) : error && !timetable ? (
+        <div className="card flex min-h-72 flex-col items-center justify-center text-center">
+          <CalendarDaysIcon className="mb-3 h-10 w-10 text-red-400" />
+          <h2 className="item-title">Stundenplan nicht verfügbar</h2>
+          <p className="mt-1 max-w-md text-sm text-surface-500">{error}</p>
+          <button type="button" className="btn btn-secondary mt-4" onClick={() => load()}>Erneut versuchen</button>
+        </div>
+      ) : <>
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
       {message && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">{message}</p>}
 
@@ -746,6 +736,7 @@ const TimetableSettings: React.FC = () => {
           </form>
         </section>
       </div>
+      </>}
     </div>
   );
 };

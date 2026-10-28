@@ -639,6 +639,7 @@ const Settings: React.FC = () => {
   const [notificationsSaving, setNotificationsSaving] = useState(false);
   const [notificationTestSending, setNotificationTestSending] = useState(false);
   const [notificationError, setNotificationError] = useState('');
+  const [notificationClassSyncFailed, setNotificationClassSyncFailed] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
 
   const pushSupported = typeof window !== 'undefined'
@@ -666,6 +667,7 @@ const Settings: React.FC = () => {
     setNotificationsSaving(false);
     setNotificationTestSending(false);
     setNotificationError('');
+    setNotificationClassSyncFailed(false);
     setNotificationMessage('');
     if (section !== 'notifications') {
       setNotificationsLoading(false);
@@ -708,6 +710,7 @@ const Settings: React.FC = () => {
           } catch (syncError) {
             if (controller.signal.aborted) return;
             console.error('Failed to sync substitution notification class:', syncError);
+            setNotificationClassSyncFailed(true);
           }
         }
         if (pushSupported) {
@@ -860,6 +863,7 @@ const Settings: React.FC = () => {
       void capture('settings_updated', { section: 'notifications' });
       const savedPreferences = withSelectedClass({ ...defaultNotificationPreferences, ...response.preferences });
       setNotificationPrefs(savedPreferences);
+      setNotificationClassSyncFailed(false);
       if (!response.preferences.enabled) setNotificationBrowserReady(false);
       setNotificationMessage('Benachrichtigungseinstellungen gespeichert.');
     } catch (error) {
@@ -896,6 +900,7 @@ const Settings: React.FC = () => {
         void capture('settings_updated', { section: 'notifications' });
         const savedPreferences = withSelectedClass({ ...defaultNotificationPreferences, ...response.preferences });
         setNotificationPrefs(savedPreferences);
+        setNotificationClassSyncFailed(false);
         setNotificationMessage('Benachrichtigungen sind jetzt aktiv.');
       } catch (error) {
         let rollbackError: Error | null = null;
@@ -1212,6 +1217,15 @@ const Settings: React.FC = () => {
                 </button>
             </div>}
 
+            {notificationClassSyncFailed && (
+              <div role="alert" className="space-y-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                <p>Der Klassenfilter konnte nicht synchronisiert werden. Push-Benachrichtigungen verwenden möglicherweise noch die bisherige Klasse.</p>
+                <button type="button" className="btn btn-secondary" onClick={() => void saveNotificationSettings(notificationPrefs)}
+                  disabled={notificationsLoading || notificationsSaving || !notificationSettingsLoaded || !token}>
+                  {notificationsSaving ? 'Wird gespeichert …' : 'Erneut versuchen'}
+                </button>
+              </div>
+            )}
             {notificationError && (
               <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/40 dark:text-red-300">{notificationError}</p>
             )}
