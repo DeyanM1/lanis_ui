@@ -701,8 +701,13 @@ const Settings: React.FC = () => {
           loadedPreferences.vertretungsplan_class_mode !== classScopedPreferences.vertretungsplan_class_mode
           || JSON.stringify(loadedPreferences.vertretungsplan_classes) !== JSON.stringify(classScopedPreferences.vertretungsplan_classes)
         )) {
-          const response = await notificationsAPI.updatePreferences(token, classScopedPreferences);
-          if (!response.success) throw new Error('Substitution notification class could not be synced.');
+          try {
+            const response = await notificationsAPI.updatePreferences(token, classScopedPreferences);
+            if (!response.success) throw new Error('Substitution notification class could not be synced.');
+          } catch (syncError) {
+            if (controller.signal.aborted) return;
+            console.error('Failed to sync substitution notification class:', syncError);
+          }
         }
         if (pushSupported) {
           setNotificationPermission(Notification.permission);
